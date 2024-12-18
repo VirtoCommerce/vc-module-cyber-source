@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<module>
+  <id>VirtoCommerce.CyberSourcePayment</id>
+  <version>3.800.0</version>
+  <version-tag></version-tag>
+
+  <platformVersion>3.856.0</platformVersion>
+  <dependencies>
+    <dependency id="VirtoCommerce.Customer" version="3.821.0" />
+    <dependency id="VirtoCommerce.Order" version="3.830.0" />
+    <dependency id="VirtoCommerce.Payment" version="3.804.0" />
+    <dependency id="VirtoCommerce.Core" version="3.812.0" />
+  </dependencies>
+  <title>VirtoCommerce CyberSource payment method</title>
+  <description>VirtoCommerce CyberSource payment module</description>
+
+  <authors>
+    <author>Basil Kotov</author>
+  </authors>
+  <owners>
+    <owner>VirtoCommerce</owner>
+  </owners>
+
+  <projectUrl>https://github.com/VirtoCommerce/vc-module-cyber-source</projectUrl>
+  <iconUrl>Modules/$(VirtoCommerce.CyberSource)/Content/logo.png</iconUrl>
+  <requireLicenseAcceptance>false</requireLicenseAcceptance>
+
+  <assemblyFile>VirtoCommerce.CyberSourcePayment.Web.dll</assemblyFile>
+  <moduleType>VirtoCommerce.CyberSourcePayment.Web.Module, VirtoCommerce.CyberSourcePayment.Web</moduleType>
+
+  <releaseNotes>First version.</releaseNotes>
+  <copyright>Copyright © 2024 VirtoCommerce. All rights reserved</copyright>
+  <tags>extension module</tags>
+  <useFullTypeNameInSwagger>false</useFullTypeNameInSwagger>
+</module>
