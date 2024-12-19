@@ -142,7 +142,7 @@ public class CyberSourcePaymentMethod(
     };
 
 
-    private PostProcessPaymentRequestResult PaymentApproved(
+    private static PostProcessPaymentRequestResult PaymentApproved(
         PtsV2PaymentsPost201Response response,
         PaymentIn payment,
         CustomerOrder order
@@ -179,7 +179,7 @@ public class CyberSourcePaymentMethod(
         return result;
     }
 
-    private PostProcessPaymentRequestResult PaymentDeclined(
+    private static PostProcessPaymentRequestResult PaymentDeclined(
         PtsV2PaymentsPost201Response response,
         PaymentIn payment
     )
@@ -197,7 +197,7 @@ public class CyberSourcePaymentMethod(
 
     }
 
-    private PostProcessPaymentRequestResult PaymentPending(
+    private static PostProcessPaymentRequestResult PaymentPending(
         PtsV2PaymentsPost201Response response,
         PaymentIn payment
     )
@@ -214,7 +214,7 @@ public class CyberSourcePaymentMethod(
 
     }
 
-    private PostProcessPaymentRequestResult PaymentInvalid(
+    private static PostProcessPaymentRequestResult PaymentInvalid(
         PtsV2PaymentsPost201Response response,
         PaymentIn payment
     )
