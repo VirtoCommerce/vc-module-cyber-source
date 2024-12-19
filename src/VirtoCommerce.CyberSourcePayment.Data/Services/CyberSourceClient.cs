@@ -64,7 +64,7 @@ public class CyberSourceClient(
     {
         var result = new CreatePaymentRequest(
             OrderInformation: GetOrderInfo(payment, order, contact),
-            PaymentInformation: new Ptsv2paymentsPaymentInformation(),
+            PaymentInformation: new Ptsv2paymentsPaymentInformation()
         );
         return result;
     }
