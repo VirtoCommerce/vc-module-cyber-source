@@ -115,7 +115,7 @@ public class CyberSourcePaymentMethod(
 
     #region Post Process Results
 
-    private PostProcessPaymentRequestResult GetPostPaymentResult(
+    private static PostProcessPaymentRequestResult GetPostPaymentResult(
         PtsV2PaymentsPost201Response response,
         PaymentIn payment,
         CustomerOrder order
