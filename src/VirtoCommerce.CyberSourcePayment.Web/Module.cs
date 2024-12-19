@@ -21,7 +21,6 @@ public class Module : IModule, IHasConfiguration
     {
         serviceCollection.AddOptions<CyberSourcePaymentMethodOptions>().Bind(Configuration.GetSection("Payments:CyberSource")).ValidateDataAnnotations();
 
-        //serviceCollection.AddTransient<ICyberSourceCheckoutService, CyberSourceCheckoutService>();
         serviceCollection.AddTransient<ICyberSourceClient, CyberSourceClient>();
         serviceCollection.AddTransient<CyberSourcePaymentMethod>();
     }

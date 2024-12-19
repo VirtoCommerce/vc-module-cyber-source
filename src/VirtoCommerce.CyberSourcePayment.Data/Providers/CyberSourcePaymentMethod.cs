@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Threading.Tasks;
 using CyberSource.Model;
 using Newtonsoft.Json;
 using VirtoCommerce.CyberSourcePayment.Core;
@@ -28,52 +29,12 @@ public class CyberSourcePaymentMethod(
 
     public override ProcessPaymentRequestResult ProcessPayment(ProcessPaymentRequest request)
     {
-        var store = (Store)request.Store;
-
-        if (store == null || (store.SecureUrl.IsNullOrEmpty() && store.Url.IsNullOrEmpty()))
-        {
-            // todo: publish error, url required
-            throw new Exception();
-        }
-
-        var url = store.SecureUrl.IsNullOrEmpty() ? store.Url : store.SecureUrl;
-        var cardTypesValue = Settings.GetValue<string>(ModuleConstants.Settings.General.CyberSourceCardTypes);
-        var cardTypes = cardTypesValue.Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Where(x => !x.IsNullOrEmpty())
-            .Select(x => x.Trim().ToUpperInvariant())
-            .ToArray();
-
-        var jwt = cyberSourceClient.GenerateCaptureContext(Sandbox, url, cardTypes);
-
-        var result = new ProcessPaymentRequestResult
-        {
-            IsSuccess = true,
-            NewPaymentStatus = PaymentStatus.Pending,
-            PublicParameters = new()
-            {
-                {"jwt", jwt.KeyId },
-                // todo: remove it before release
-                {"clientScript", "https://testflex.cybersource.com/microform/bundle/v2.0.2/flex-microform.min.js"},
-            }
-        };
-
-        var payment = (PaymentIn)request.Payment;
-        payment.PaymentStatus = PaymentStatus.Pending;
-        payment.Status = payment.PaymentStatus.ToString();
-
-        return result;
+        return ProcessPaymentAsync(request).GetAwaiter().GetResult();
     }
 
     public override PostProcessPaymentRequestResult PostProcessPayment(PostProcessPaymentRequest request)
     {
-        var token = request.Parameters.Get("token"); // todo: should I validate token here?
-        var payment = (PaymentIn)request.Payment;
-        var order = (CustomerOrder)request.Order;
-
-        var paymentResult = cyberSourceClient.ProcessPayment(Sandbox, token, payment, order);
-
-        var result = GetPostPaymentResult(paymentResult, payment, order);
-        return result;
+        return PostProcessPaymentAsync(request).GetAwaiter().GetResult();
     }
 
     public override ValidatePostProcessRequestResult ValidatePostProcessRequest(NameValueCollection queryString)
@@ -99,6 +60,58 @@ public class CyberSourcePaymentMethod(
         throw new NotImplementedException();
     }
 
+    #region protected async methods
+
+    protected virtual async Task<ProcessPaymentRequestResult> ProcessPaymentAsync(ProcessPaymentRequest request)
+    {
+        var store = (Store)request.Store;
+
+        if (store == null || (store.SecureUrl.IsNullOrEmpty() && store.Url.IsNullOrEmpty()))
+        {
+            throw new InvalidOperationException("The store URL is not specified.");
+        }
+
+        var url = store.SecureUrl.IsNullOrEmpty() ? store.Url : store.SecureUrl;
+        var cardTypesValue = Settings.GetValue<string>(ModuleConstants.Settings.General.CyberSourceCardTypes);
+        var cardTypes = cardTypesValue.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Where(x => !x.IsNullOrEmpty())
+            .Select(x => x.Trim().ToUpperInvariant())
+            .ToArray();
+
+        var jwt = await cyberSourceClient.GenerateCaptureContext(Sandbox, url, cardTypes);
+
+        var result = new ProcessPaymentRequestResult
+        {
+            IsSuccess = true,
+            NewPaymentStatus = PaymentStatus.Pending,
+            PublicParameters = new()
+            {
+                {"jwt", jwt.KeyId },
+                // todo: remove it before release
+                {"clientScript", "https://testflex.cybersource.com/microform/bundle/v2.0.2/flex-microform.min.js"},
+            }
+        };
+
+        var payment = (PaymentIn)request.Payment;
+        payment.PaymentStatus = PaymentStatus.Pending;
+        payment.Status = payment.PaymentStatus.ToString();
+
+        return result;
+    }
+
+    protected virtual async Task<PostProcessPaymentRequestResult> PostProcessPaymentAsync(PostProcessPaymentRequest request)
+    {
+        var token = request.Parameters.Get("token"); // todo: should I validate token here?
+        var payment = (PaymentIn)request.Payment;
+        var order = (CustomerOrder)request.Order;
+
+        var paymentResult = await cyberSourceClient.ProcessPayment(Sandbox, token, payment, order);
+
+        var result = GetPostPaymentResult(paymentResult, payment, order);
+        return result;
+    }
+
+    #endregion
 
     #region Post Process Results
 
@@ -111,15 +124,15 @@ public class CyberSourcePaymentMethod(
         // PtsV2PaymentsPost201Response described here
         // https://github.com/CyberSource/cybersource-rest-client-node/blob/master/docs/PtsV2PaymentsPost201Response.md
         "AUTHORIZED" => PaymentApproved(response, payment, order),
-        "DECLINED" => PaymentDeclined(response, payment, order),
+        "DECLINED" => PaymentDeclined(response, payment),
 
         "PARTIAL_AUTHORIZED"
             or "AUTHORIZED_PENDING_REVIEW"
             or "AUTHORIZED_RISK_DECLINED"
-            or "INVALID_REQUEST" => PaymentInvalid(response, payment, order),
+            or "INVALID_REQUEST" => PaymentInvalid(response, payment),
 
         "PENDING_AUTHENTICATION"
-            or "PENDING_REVIEW" => PaymentPending(response, payment, order),
+            or "PENDING_REVIEW" => PaymentPending(response, payment),
         _ => new PostProcessPaymentRequestResult
         {
             ErrorMessage = response.ErrorInformation?.Message
@@ -168,8 +181,7 @@ public class CyberSourcePaymentMethod(
 
     private PostProcessPaymentRequestResult PaymentDeclined(
         PtsV2PaymentsPost201Response response,
-        PaymentIn payment,
-        CustomerOrder order
+        PaymentIn payment
     )
     {
         var transactionMessage = response.ErrorInformation.Message;
@@ -187,8 +199,7 @@ public class CyberSourcePaymentMethod(
 
     private PostProcessPaymentRequestResult PaymentPending(
         PtsV2PaymentsPost201Response response,
-        PaymentIn payment,
-        CustomerOrder order
+        PaymentIn payment
     )
     {
         var transactionMessage = response.ErrorInformation.Message;
@@ -205,8 +216,7 @@ public class CyberSourcePaymentMethod(
 
     private PostProcessPaymentRequestResult PaymentInvalid(
         PtsV2PaymentsPost201Response response,
-        PaymentIn payment,
-        CustomerOrder order
+        PaymentIn payment
     )
     {
         var transactionMessage = response.ErrorInformation.Message;

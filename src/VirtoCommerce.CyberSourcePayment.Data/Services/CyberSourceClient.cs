@@ -1,6 +1,6 @@
-using System;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using CyberSource.Api;
 using CyberSource.Model;
 using Microsoft.AspNetCore.Identity;
@@ -20,72 +20,52 @@ public class CyberSourceClient(
     UserManager<ApplicationUser> userManager
     ) : ICyberSourceClient
 {
-    public virtual JwtKeyModel GenerateCaptureContext(bool sandbox, string storeUrl, string[] cardTypes)
+    public virtual async Task<JwtKeyModel> GenerateCaptureContext(bool sandbox, string storeUrl, string[] cardTypes)
     {
-        try
+        var request = new GenerateCaptureContextRequest(
+            "v2.0",
+            [storeUrl],
+            cardTypes.ToList()
+        );
+        var config = new CyberSource.Client.Configuration
         {
-            var request = new GenerateCaptureContextRequest(
-                "v2.0",
-                [storeUrl],
-                cardTypes.ToList()
-            );
-            var config = new CyberSource.Client.Configuration
-            {
-                MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
-            };
-            var api = new MicroformIntegrationApi(config);
-            var result = api.GenerateCaptureContext(request);
-            return new JwtKeyModel { KeyId = result };
-        }
-        catch (Exception ex)
-        {
-            throw new Exception("Error generating JWT", ex);
-        }
+            MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
+        };
+        var api = new MicroformIntegrationApi(config);
+        var result = await api.GenerateCaptureContextAsync(request);
+        return new JwtKeyModel { KeyId = result };
     }
 
-    public virtual PtsV2PaymentsPost201Response ProcessPayment(bool sandbox, string token, PaymentIn payment, CustomerOrder order)
+    public virtual async Task<PtsV2PaymentsPost201Response> ProcessPayment(bool sandbox, string token, PaymentIn payment, CustomerOrder order)
     {
-        try
+        var user = await userManager.FindByIdAsync(order.CustomerId);
+        var contact = (Contact)(await memberService.GetByIdAsync(user.MemberId));
+
+        var request = GeneratePaymentRequest(payment, order, contact);
+
+        if (request.TokenInformation == null)
         {
-            var user = userManager.FindByIdAsync(order.CustomerId).Result;
-            var contact = (Contact)memberService.GetByIdAsync(user.MemberId).Result;
-
-            var request = GeneratePaymentRequest(payment, order, contact);
-
-            if (request.TokenInformation == null)
+            request.TokenInformation = new Ptsv2paymentsTokenInformation
             {
-                request.TokenInformation = new Ptsv2paymentsTokenInformation
-                {
-                    TransientTokenJwt = token
-                };
-            }
-
-            var config = new CyberSource.Client.Configuration
-            {
-                MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
+                TransientTokenJwt = token
             };
-            var api = new PaymentsApi(config);
-            var result = api.CreatePayment(request);
-            return result;
         }
-        catch (Exception ex)
+
+        var config = new CyberSource.Client.Configuration
         {
-            throw new Exception("Error processing payment", ex);
-        }
+            MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
+        };
+        var api = new PaymentsApi(config);
+        var result = api.CreatePayment(request);
+        return result;
     }
 
     protected virtual CreatePaymentRequest GeneratePaymentRequest(PaymentIn payment, CustomerOrder order, Contact contact)
     {
         var result = new CreatePaymentRequest(
             OrderInformation: GetOrderInfo(payment, order, contact),
-            PaymentInformation: GetPaymentInfo(payment, order, contact)
+            PaymentInformation: new Ptsv2paymentsPaymentInformation(),
         );
-        return result;
-    }
-
-    private Ptsv2paymentsPaymentInformation GetPaymentInfo(PaymentIn payment, CustomerOrder order, Contact contact)
-    {
-        var result = new Ptsv2paymentsPaymentInformation { };
         return result;
     }
 
