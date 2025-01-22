@@ -78,7 +78,7 @@ public class CyberSourcePaymentMethod(
             .Select(x => x.Trim().ToUpperInvariant())
             .ToArray();
 
-        var jwt = await cyberSourceClient.GenerateCaptureContext(Sandbox, url, cardTypes);
+        var jwtData = await cyberSourceClient.GenerateCaptureContext(Sandbox, url, cardTypes);
 
         var result = new ProcessPaymentRequestResult
         {
@@ -86,9 +86,10 @@ public class CyberSourcePaymentMethod(
             NewPaymentStatus = PaymentStatus.Pending,
             PublicParameters = new()
             {
-                {"jwt", jwt.KeyId },
-                // todo: remove it before release
-                {"clientScript", "https://testflex.cybersource.com/microform/bundle/v2.0.2/flex-microform.min.js"},
+                {"jwt", jwtData.Jwt},
+                {"clientLibraryIntegrity", jwtData.ClientLibraryIntegrity},
+                {"clientScript", jwtData.ClientLibrary},
+                {"kid", jwtData.KeyId},
             }
         };
 

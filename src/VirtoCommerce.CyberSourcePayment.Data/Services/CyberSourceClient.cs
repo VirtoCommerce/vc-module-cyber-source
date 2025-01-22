@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Threading.Tasks;
 using CyberSource.Api;
@@ -32,8 +33,23 @@ public class CyberSourceClient(
             MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
         };
         var api = new MicroformIntegrationApi(config);
-        var result = await api.GenerateCaptureContextAsync(request);
-        return new JwtKeyModel { KeyId = result };
+        var jwt = await api.GenerateCaptureContextAsync(request);
+
+        return DecodeJwtToJwtKeyModel(jwt);
+    }
+
+    private JwtKeyModel DecodeJwtToJwtKeyModel(string jwt)
+    {
+        var jwtKeyModel = new JwtKeyModel { Jwt = jwt };
+
+        var handler = new JwtSecurityTokenHandler();
+        var token = handler.ReadJwtToken(jwt);
+
+        jwtKeyModel.ClientLibrary = token.Claims.First(c => c.Type == "clientLibrary").Value;
+        jwtKeyModel.ClientLibraryIntegrity = token.Claims.First(c => c.Type == "clientLibraryIntegrity").Value;
+        jwtKeyModel.KeyId = token.Claims.First(c => c.Type == "kid").Value;
+
+        return jwtKeyModel;
     }
 
     public virtual async Task<PtsV2PaymentsPost201Response> ProcessPayment(bool sandbox, string token, PaymentIn payment, CustomerOrder order)
