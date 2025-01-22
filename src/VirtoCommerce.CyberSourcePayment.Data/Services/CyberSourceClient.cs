@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
@@ -6,6 +7,7 @@ using CyberSource.Api;
 using CyberSource.Model;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json.Linq;
 using VirtoCommerce.CustomerModule.Core.Model;
 using VirtoCommerce.CustomerModule.Core.Services;
 using VirtoCommerce.CyberSourcePayment.Core.Models;
@@ -38,16 +40,34 @@ public class CyberSourceClient(
         return DecodeJwtToJwtKeyModel(jwt);
     }
 
-    private JwtKeyModel DecodeJwtToJwtKeyModel(string jwt)
+    public static JwtKeyModel DecodeJwtToJwtKeyModel(string jwt)
     {
         var jwtKeyModel = new JwtKeyModel { Jwt = jwt };
 
         var handler = new JwtSecurityTokenHandler();
         var token = handler.ReadJwtToken(jwt);
 
-        jwtKeyModel.ClientLibrary = token.Claims.First(c => c.Type == "clientLibrary").Value;
-        jwtKeyModel.ClientLibraryIntegrity = token.Claims.First(c => c.Type == "clientLibraryIntegrity").Value;
-        jwtKeyModel.KeyId = token.Claims.First(c => c.Type == "kid").Value;
+        // Extract the 'ctx' claim
+        var ctxClaim = token.Claims.FirstOrDefault(c => c.Type == "ctx")?.Value;
+        if (ctxClaim == null)
+        {
+            throw new Exception("The ctx claim is missing in the JWT.");
+        }
+
+        // Extract the 'flx' claim
+        var flxClaim = token.Claims.FirstOrDefault(c => c.Type == "flx")?.Value;
+        if (flxClaim == null)
+        {
+            throw new Exception("The flx claim is missing in the JWT.");
+        }
+
+        // Parse the ctx claim as JSON
+        var ctxObject = JObject.Parse(ctxClaim);
+        var flxObject = JObject.Parse(flxClaim);
+
+        jwtKeyModel.ClientLibrary = ctxObject["data"]["clientLibrary"]?.ToString();
+        jwtKeyModel.ClientLibraryIntegrity = ctxObject["data"]["clientLibraryIntegrity"]?.ToString();
+        jwtKeyModel.KeyId = flxObject["jwk"]?["kid"]?.ToString();
 
         return jwtKeyModel;
     }
