@@ -11,8 +11,8 @@
     <dependency id="VirtoCommerce.Payment" version="3.804.0" />
     <dependency id="VirtoCommerce.Core" version="3.812.0" />
   </dependencies>
-  <title>VirtoCommerce CyberSource payment method</title>
-  <description>VirtoCommerce CyberSource payment module</description>
+  <title>CyberSource Payment Module</title>
+  <description>Integrates CyberSource's payment solutions into your Virto Commerce platform</description>
 
   <authors>
     <author>Basil Kotov</author>
