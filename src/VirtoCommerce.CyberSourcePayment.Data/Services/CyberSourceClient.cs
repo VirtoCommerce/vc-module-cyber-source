@@ -20,7 +20,7 @@ namespace VirtoCommerce.CyberSourcePayment.Data.Services;
 public class CyberSourceClient(
     IOptions<CyberSourcePaymentMethodOptions> options,
     IMemberService memberService,
-    UserManager<ApplicationUser> userManager
+    Func<UserManager<ApplicationUser>> userManagerFactory
     ) : ICyberSourceClient
 {
     public virtual async Task<JwtKeyModel> GenerateCaptureContext(bool sandbox, string storeUrl, string[] cardTypes)
@@ -74,6 +74,7 @@ public class CyberSourceClient(
 
     public virtual async Task<PtsV2PaymentsPost201Response> ProcessPayment(bool sandbox, string token, PaymentIn payment, CustomerOrder order)
     {
+        using var userManager = userManagerFactory();
         var user = await userManager.FindByIdAsync(order.CustomerId);
         var contact = (Contact)(await memberService.GetByIdAsync(user.MemberId));
 
