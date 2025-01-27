@@ -51,22 +51,22 @@ public class CyberSourceClient(
         var ctxClaim = token.Claims.FirstOrDefault(c => c.Type == "ctx")?.Value;
         if (ctxClaim == null)
         {
-            throw new Exception("The ctx claim is missing in the JWT.");
+            throw new InvalidOperationException("The ctx claim is missing in the JWT.");
         }
 
         // Extract the 'flx' claim
         var flxClaim = token.Claims.FirstOrDefault(c => c.Type == "flx")?.Value;
         if (flxClaim == null)
         {
-            throw new Exception("The flx claim is missing in the JWT.");
+            throw new InvalidOperationException("The flx claim is missing in the JWT.");
         }
 
         // Parse the ctx claim as JSON
         var ctxObject = JObject.Parse(ctxClaim);
         var flxObject = JObject.Parse(flxClaim);
 
-        jwtKeyModel.ClientLibrary = ctxObject["data"]["clientLibrary"]?.ToString();
-        jwtKeyModel.ClientLibraryIntegrity = ctxObject["data"]["clientLibraryIntegrity"]?.ToString();
+        jwtKeyModel.ClientLibrary = ctxObject["data"]?["clientLibrary"]?.ToString();
+        jwtKeyModel.ClientLibraryIntegrity = ctxObject["data"]?["clientLibraryIntegrity"]?.ToString();
         jwtKeyModel.KeyId = flxObject["jwk"]?["kid"]?.ToString();
 
         return jwtKeyModel;
@@ -93,7 +93,7 @@ public class CyberSourceClient(
             MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
         };
         var api = new PaymentsApi(config);
-        var result = api.CreatePayment(request);
+        var result = await api.CreatePaymentAsync(request);
         return result;
     }
 
@@ -126,6 +126,7 @@ public class CyberSourceClient(
                 Address1 = payment.BillingAddress.Line1,
                 Address2 = payment.BillingAddress.Line2,
                 Country = payment.BillingAddress.CountryName,
+                AdministrativeArea = payment.BillingAddress.RegionName,
                 PostalCode = payment.BillingAddress.PostalCode,
             },
             LineItems = order.Items.Select(x => new Ptsv2paymentsOrderInformationLineItems
