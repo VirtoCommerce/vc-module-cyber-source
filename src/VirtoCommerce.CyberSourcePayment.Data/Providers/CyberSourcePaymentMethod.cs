@@ -154,6 +154,7 @@ public class CyberSourcePaymentMethod(
             NewPaymentStatus = PaymentStatus.Authorized,
             OrderId = order.Id,
             OuterId = response.ProcessorInformation.TransactionId,
+            IsSuccess = true,
         };
 
         payment.Status = result.NewPaymentStatus.ToString();
