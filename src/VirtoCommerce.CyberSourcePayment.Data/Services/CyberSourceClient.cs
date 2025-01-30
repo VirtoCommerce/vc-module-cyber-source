@@ -2,11 +2,16 @@ using System;
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using CyberSource.Api;
 using CyberSource.Model;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Linq;
 using VirtoCommerce.CustomerModule.Core.Model;
 using VirtoCommerce.CustomerModule.Core.Services;
@@ -20,7 +25,8 @@ namespace VirtoCommerce.CyberSourcePayment.Data.Services;
 public class CyberSourceClient(
     IOptions<CyberSourcePaymentMethodOptions> options,
     IMemberService memberService,
-    Func<UserManager<ApplicationUser>> userManagerFactory
+    Func<UserManager<ApplicationUser>> userManagerFactory,
+    HttpClient httpClient
     ) : ICyberSourceClient
 {
     public virtual async Task<JwtKeyModel> GenerateCaptureContext(bool sandbox, string storeUrl, string[] cardTypes)
@@ -37,7 +43,88 @@ public class CyberSourceClient(
         var api = new MicroformIntegrationApi(config);
         var jwt = await api.GenerateCaptureContextAsync(request);
 
+        if (options.Value.ValidateSignature)
+        {
+            await VerifyJwtAndGetDecodedBody(sandbox, jwt);
+        }
+
         return DecodeJwtToJwtKeyModel(jwt);
+    }
+
+    private async Task VerifyJwtAndGetDecodedBody(bool sandbox, string jwt)
+    {
+        var jwtParts = jwt.Split('.');
+        if (jwtParts.Length != 3)
+            throw new ArgumentException("Invalid JWT format");
+
+        var headerBase64Url = jwtParts[0];
+
+        var headerJson = Encoding.UTF8.GetString(Base64UrlDecode(headerBase64Url));
+
+        var header = JsonSerializer.Deserialize<CaptureContextResponseHeader>(headerJson);
+        if (header == null || string.IsNullOrEmpty(header.kid))
+            throw new InvalidOperationException("Missing 'kid' in JWT header");
+
+        var jwk = await GetPublicKeyFromHeader(sandbox, header.kid);
+
+        var rsaParameters = new RSAParameters
+        {
+            Modulus = Base64UrlDecode(jwk.n),
+            Exponent = Base64UrlDecode(jwk.e)
+        };
+
+        using var rsa = RSA.Create();
+        rsa.ImportParameters(rsaParameters);
+
+        var rsaSecurityKey = new RsaSecurityKey(rsa)
+        {
+            KeyId = jwk.kid
+        };
+
+        var validationParameters = new TokenValidationParameters
+        {
+            ValidateAudience = false,
+            ValidateIssuer = false,
+            ValidateLifetime = false,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = rsaSecurityKey,
+            // ValidAlgorithms = new[] { SecurityAlgorithms.RsaSha256 }
+        };
+
+        var handler = new JwtSecurityTokenHandler();
+        handler.ValidateToken(jwt, validationParameters, out _);
+    }
+
+    private static byte[] Base64UrlDecode(string input)
+    {
+        var output = input.Replace('-', '+').Replace('_', '/');
+        switch (output.Length % 4)
+        {
+            case 0:
+                break;
+            case 2:
+                output += "==";
+                break;
+            case 3:
+                output += "=";
+                break;
+            default:
+                throw new FormatException("Illegal base64url string!");
+        }
+        return Convert.FromBase64String(output);
+    }
+
+    private async Task<JWK> GetPublicKeyFromHeader(bool sandbox, string kid)
+    {
+        var environment = options.Value.Environment(sandbox);
+        var url = $"https://{environment}/flex/v2/public-keys/{kid}";
+        var responseString = await httpClient.GetStringAsync(url);
+
+        var jwk = JsonSerializer.Deserialize<JWK>(responseString);
+        if (jwk == null)
+            throw new InvalidOperationException("Failed to deserialize JWK from server response.");
+
+        return jwk;
     }
 
     public static JwtKeyModel DecodeJwtToJwtKeyModel(string jwt)
@@ -151,5 +238,21 @@ public class CyberSourceClient(
         };
 
         return result;
+    }
+
+    private class JWK
+    {
+        public string kty { get; set; }
+        public string kid { get; set; }
+        public string use { get; set; }
+        public string n { get; set; }
+        public string e { get; set; }
+    }
+
+    private class CaptureContextResponseHeader
+    {
+        public string alg { get; set; }
+        public string typ { get; set; }
+        public string kid { get; set; }
     }
 }

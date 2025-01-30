@@ -8,13 +8,20 @@ public class CyberSourcePaymentMethodOptions
     public string MerchantKeyId { get; set; }
     public string MerchantSecretKey { get; set; }
 
+    public bool ValidateSignature { get; set; } = true;
+
     private readonly Dictionary<string, string> _configurationDictionary = new();
+
+    public string Environment(bool sandbox)
+    {
+        return sandbox
+            ? "apitest.cybersource.com"
+            : "api.cybersource.com";
+    }
 
     public IReadOnlyDictionary<string, string> ToDictionary(bool sandbox)
     {
-        var environment = sandbox
-            ? "apitest.cybersource.com"
-            : "api.cybersource.com";
+        var environment = Environment(sandbox);
 
         _configurationDictionary.TryAdd("authenticationType", "HTTP_SIGNATURE");
         _configurationDictionary.TryAdd("merchantID", MerchantId);
