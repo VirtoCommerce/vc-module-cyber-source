@@ -12,7 +12,7 @@ public class CyberSourcePaymentMethodOptions
 
     private readonly Dictionary<string, string> _configurationDictionary = new();
 
-    public string Environment(bool sandbox)
+    public static string Environment(bool sandbox)
     {
         return sandbox
             ? "apitest.cybersource.com"

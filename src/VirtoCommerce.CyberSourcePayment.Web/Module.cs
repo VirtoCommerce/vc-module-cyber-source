@@ -23,6 +23,7 @@ public class Module : IModule, IHasConfiguration
 
         serviceCollection.AddTransient<ICyberSourceClient, CyberSourceClient>();
         serviceCollection.AddTransient<CyberSourcePaymentMethod>();
+        serviceCollection.AddTransient<CyberSourceJwkValidator>();
     }
 
     public void PostInitialize(IApplicationBuilder appBuilder)
