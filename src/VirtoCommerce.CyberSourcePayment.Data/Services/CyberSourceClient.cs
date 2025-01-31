@@ -45,17 +45,19 @@ public class CyberSourceClient(
 
         if (options.Value.ValidateSignature)
         {
-            await VerifyJwtAndGetDecodedBody(sandbox, jwt);
+            await VerifyJwt(sandbox, jwt);
         }
 
         return DecodeJwtToJwtKeyModel(jwt);
     }
 
-    private async Task VerifyJwtAndGetDecodedBody(bool sandbox, string jwt)
+    private Task VerifyJwt(bool sandbox, string jwt)
     {
         var jwtParts = jwt.Split('.');
         if (jwtParts.Length != 3)
+        {
             throw new ArgumentException("Invalid JWT format");
+        }
 
         var headerBase64Url = jwtParts[0];
 
@@ -63,8 +65,15 @@ public class CyberSourceClient(
 
         var header = JsonSerializer.Deserialize<CaptureContextResponseHeader>(headerJson);
         if (header == null || string.IsNullOrEmpty(header.kid))
+        {
             throw new InvalidOperationException("Missing 'kid' in JWT header");
+        }
 
+        return VerifyJwtInternal(sandbox, jwt, header);
+    }
+
+    private async Task VerifyJwtInternal(bool sandbox, string jwt, CaptureContextResponseHeader header)
+    {
         var jwk = await GetPublicKeyFromHeader(sandbox, header.kid);
 
         var rsaParameters = new RSAParameters
@@ -122,7 +131,9 @@ public class CyberSourceClient(
 
         var jwk = JsonSerializer.Deserialize<JWK>(responseString);
         if (jwk == null)
+        {
             throw new InvalidOperationException("Failed to deserialize JWK from server response.");
+        }
 
         return jwk;
     }
@@ -167,13 +178,10 @@ public class CyberSourceClient(
 
         var request = GeneratePaymentRequest(payment, order, contact);
 
-        if (request.TokenInformation == null)
+        request.TokenInformation ??= new Ptsv2paymentsTokenInformation
         {
-            request.TokenInformation = new Ptsv2paymentsTokenInformation
-            {
-                TransientTokenJwt = token
-            };
-        }
+            TransientTokenJwt = token
+        };
 
         var config = new CyberSource.Client.Configuration
         {
@@ -195,11 +203,8 @@ public class CyberSourceClient(
 
     private static Ptsv2paymentsOrderInformation GetOrderInfo(PaymentIn payment, CustomerOrder order, Contact contact)
     {
-        var email = contact.Emails.FirstOrDefault();
-        if (email == null)
-        {
-            email = contact.SecurityAccounts.Select(x => x.Email).FirstOrDefault();
-        }
+        var email = contact.Emails.FirstOrDefault()
+                    ?? contact.SecurityAccounts.Select(x => x.Email).FirstOrDefault();
 
         var result = new Ptsv2paymentsOrderInformation
         {
