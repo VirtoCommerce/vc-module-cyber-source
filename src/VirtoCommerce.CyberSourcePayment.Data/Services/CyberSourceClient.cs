@@ -51,32 +51,29 @@ public class CyberSourceClient(
                 return DecodeJwtToJwtKeyModel(jwt);
             }
             catch (Exception exception)
+                when (exception is SecurityTokenException || exception is SecurityTokenMalformedException)
             #region exceptions
-            //catch (SecurityTokenMalformedException)
-            //catch (SecurityTokenException)
-            //catch (SecurityTokenDecryptionFailedException)
-            //catch (SecurityTokenEncryptionKeyNotFoundException)
-            //catch (SecurityTokenValidationException)
-            //catch (SecurityTokenExpiredException)
-            //catch (SecurityTokenInvalidAudienceException)
-            //catch (SecurityTokenInvalidLifetimeException)
-            //catch (SecurityTokenInvalidSignatureException)
-            //catch (SecurityTokenNoExpirationException)
-            //catch (SecurityTokenNotYetValidException)
-            //catch (SecurityTokenReplayAddFailedException)
-            //catch (SecurityTokenReplayDetectedException)
+            // DecodeJwtToJwtKeyModel can throw one of the following exceptions:
+            //      SecurityTokenMalformedException
+            //      SecurityTokenException
+            //      SecurityTokenDecryptionFailedException
+            //      SecurityTokenEncryptionKeyNotFoundException
+            //      SecurityTokenValidationException
+            //      SecurityTokenExpiredException
+            //      SecurityTokenInvalidAudienceException
+            //      SecurityTokenInvalidLifetimeException
+            //      SecurityTokenInvalidSignatureException
+            //      SecurityTokenNoExpirationException
+            //      SecurityTokenNotYetValidException
+            //      SecurityTokenReplayAddFailedException
+            //      SecurityTokenReplayDetectedException
             #endregion
             {
-                if (exception is SecurityTokenException || exception is SecurityTokenMalformedException)
+                retryCount--;
+                if (retryCount <= 0)
                 {
-                    retryCount--;
-                    if (retryCount > 0)
-                    {
-                        continue;
-                    }
+                    throw;
                 }
-
-                throw;
             }
         }
     }
