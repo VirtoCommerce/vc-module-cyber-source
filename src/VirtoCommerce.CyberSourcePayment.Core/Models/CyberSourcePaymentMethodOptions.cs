@@ -4,11 +4,14 @@ namespace VirtoCommerce.CyberSourcePayment.Core.Models;
 
 public class CyberSourcePaymentMethodOptions
 {
+    public string ProxyWebhookDomain { get; set; }
+
+
     public string MerchantId { get; set; }
     public string MerchantKeyId { get; set; }
     public string MerchantSecretKey { get; set; }
 
-    public bool ValidateSignature { get; set; } = true;
+    public int ValidateSignatureRetryCount { get; set; } = 0;
 
     private readonly Dictionary<string, string> _configurationDictionary = new();
 

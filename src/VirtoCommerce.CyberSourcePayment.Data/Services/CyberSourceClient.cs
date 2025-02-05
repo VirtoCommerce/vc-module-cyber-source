@@ -26,24 +26,58 @@ public class CyberSourceClient(
 {
     public virtual async Task<JwtKeyModel> GenerateCaptureContext(bool sandbox, string storeUrl, string[] cardTypes)
     {
-        var request = new GenerateCaptureContextRequest(
-            "v2.0",
-            [storeUrl],
-            cardTypes.ToList()
-        );
-        var config = new CyberSource.Client.Configuration
+        var retryCount = options.Value.ValidateSignatureRetryCount;
+        while (true)
         {
-            MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
-        };
-        var api = new MicroformIntegrationApi(config);
-        var jwt = await api.GenerateCaptureContextAsync(request);
+            try
+            {
+                var request = new GenerateCaptureContextRequest(
+                    "v2.0",
+                    [storeUrl],
+                    cardTypes.ToList()
+                );
+                var config = new CyberSource.Client.Configuration
+                {
+                    MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
+                };
+                var api = new MicroformIntegrationApi(config);
+                var jwt = await api.GenerateCaptureContextAsync(request);
 
-        if (options.Value.ValidateSignature)
-        {
-            await jwkValidator.VerifyJwt(sandbox, jwt);
+                if (retryCount > 0)
+                {
+                    await jwkValidator.VerifyJwt(sandbox, jwt);
+                }
+                return DecodeJwtToJwtKeyModel(jwt);
+            }
+            catch (Exception exception)
+            #region exceptions
+            //catch (SecurityTokenMalformedException)
+            //catch (SecurityTokenException)
+            //catch (SecurityTokenDecryptionFailedException)
+            //catch (SecurityTokenEncryptionKeyNotFoundException)
+            //catch (SecurityTokenValidationException)
+            //catch (SecurityTokenExpiredException)
+            //catch (SecurityTokenInvalidAudienceException)
+            //catch (SecurityTokenInvalidLifetimeException)
+            //catch (SecurityTokenInvalidSignatureException)
+            //catch (SecurityTokenNoExpirationException)
+            //catch (SecurityTokenNotYetValidException)
+            //catch (SecurityTokenReplayAddFailedException)
+            //catch (SecurityTokenReplayDetectedException)
+            #endregion
+            {
+                if (exception is SecurityTokenException || exception is SecurityTokenMalformedException)
+                {
+                    retryCount--;
+                    if (retryCount > 0)
+                    {
+                        continue;
+                    }
+                }
+
+                throw;
+            }
         }
-
-        return DecodeJwtToJwtKeyModel(jwt);
     }
 
 
