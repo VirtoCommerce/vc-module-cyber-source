@@ -35,12 +35,12 @@ public class CyberSourceJwkValidator(HttpClient httpClient)
 
     private async Task VerifyJwtInternal(bool sandbox, string jwt, CaptureContextResponseHeader header)
     {
-        var jwk = await GetPublicKeyFromHeader(sandbox, header.kid);
+        var jwk = await GetPublicKey(sandbox, header.kid);
 
         var rsaParameters = new RSAParameters
         {
             Modulus = Base64UrlDecode(jwk.n),
-            Exponent = Base64UrlDecode(jwk.e)
+            Exponent = Base64UrlDecode(jwk.e),
         };
 
         using var rsa = RSA.Create();
@@ -48,7 +48,7 @@ public class CyberSourceJwkValidator(HttpClient httpClient)
 
         var rsaSecurityKey = new RsaSecurityKey(rsa)
         {
-            KeyId = jwk.kid
+            KeyId = jwk.kid,
         };
 
         var validationParameters = new TokenValidationParameters
@@ -67,6 +67,7 @@ public class CyberSourceJwkValidator(HttpClient httpClient)
     private static byte[] Base64UrlDecode(string input)
     {
         var output = input.Replace('-', '+').Replace('_', '/');
+
         switch (output.Length % 4)
         {
             case 0:
@@ -80,10 +81,11 @@ public class CyberSourceJwkValidator(HttpClient httpClient)
             default:
                 throw new FormatException("Illegal base64url string!");
         }
+
         return Convert.FromBase64String(output);
     }
 
-    private async Task<JWK> GetPublicKeyFromHeader(bool sandbox, string kid)
+    private async Task<JWK> GetPublicKey(bool sandbox, string kid)
     {
         var environment = CyberSourcePaymentMethodOptions.Environment(sandbox);
         var url = $"https://{environment}/flex/v2/public-keys/{kid}";
@@ -113,5 +115,4 @@ public class CyberSourceJwkValidator(HttpClient httpClient)
         public string typ { get; set; }
         public string kid { get; set; }
     }
-
 }

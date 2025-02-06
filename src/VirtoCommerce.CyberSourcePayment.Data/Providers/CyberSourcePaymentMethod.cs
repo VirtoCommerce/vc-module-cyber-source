@@ -19,8 +19,8 @@ using VoidPaymentRequest = VirtoCommerce.PaymentModule.Model.Requests.VoidPaymen
 namespace VirtoCommerce.CyberSourcePayment.Data.Providers;
 
 public class CyberSourcePaymentMethod(
-    ICyberSourceClient cyberSourceClient
-) : PaymentMethod(nameof(CyberSourcePaymentMethod))
+    ICyberSourceClient cyberSourceClient)
+    : PaymentMethod(nameof(CyberSourcePaymentMethod))
 {
     private bool Sandbox => Settings.GetValue<bool>(ModuleConstants.Settings.General.CyberSourceSandbox);
 
@@ -73,6 +73,7 @@ public class CyberSourcePaymentMethod(
 
         var url = store.SecureUrl.IsNullOrEmpty() ? store.Url : store.SecureUrl;
         var cardTypesValue = Settings.GetValue<string>(ModuleConstants.Settings.General.CyberSourceCardTypes);
+
         var cardTypes = cardTypesValue.Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Where(x => !x.IsNullOrEmpty())
             .Select(x => x.Trim().ToUpperInvariant())
@@ -84,13 +85,13 @@ public class CyberSourcePaymentMethod(
         {
             IsSuccess = true,
             NewPaymentStatus = PaymentStatus.Pending,
-            PublicParameters = new()
+            PublicParameters =
             {
                 {"jwt", jwtData.Jwt},
                 {"clientLibraryIntegrity", jwtData.ClientLibraryIntegrity},
                 {"clientScript", jwtData.ClientLibrary},
                 {"kid", jwtData.KeyId},
-            }
+            },
         };
 
         var payment = (PaymentIn)request.Payment;
@@ -134,12 +135,13 @@ public class CyberSourcePaymentMethod(
 
         "PENDING_AUTHENTICATION"
             or "PENDING_REVIEW" => PaymentPending(response, payment),
+
         _ => new PostProcessPaymentRequestResult
         {
             ErrorMessage = response.ErrorInformation?.Message
                            ?? response.ErrorInformation?.Reason,
-            IsSuccess = false
-        }
+            IsSuccess = false,
+        },
     };
 
 
@@ -173,7 +175,7 @@ public class CyberSourcePaymentMethod(
             Amount = payment.Sum,
             Note = $"Transaction ID: {response.ProcessorInformation.TransactionId}",
             ResponseCode = response.ProcessorInformation.ResponseCode,
-            ResponseData = JsonConvert.SerializeObject(response)
+            ResponseData = JsonConvert.SerializeObject(response),
         };
 
         payment.Transactions.Add(transaction);
@@ -187,16 +189,13 @@ public class CyberSourcePaymentMethod(
     )
     {
         var transactionMessage = response.ErrorInformation.Message;
+        var errorMessage = $"Your transaction was declined: {transactionMessage}";
 
         payment.Status = PaymentStatus.Declined.ToString();
-        payment.ProcessPaymentResult = new ProcessPaymentRequestResult
-        {
-            ErrorMessage = $"Your transaction was declined: {transactionMessage}",
-        };
-        payment.Comment = $"{payment.ProcessPaymentResult.ErrorMessage}{Environment.NewLine}";
+        payment.ProcessPaymentResult = new ProcessPaymentRequestResult { ErrorMessage = errorMessage };
+        payment.Comment = $"{errorMessage}{Environment.NewLine}";
 
-        return new PostProcessPaymentRequestResult { ErrorMessage = payment.ProcessPaymentResult.ErrorMessage };
-
+        return new PostProcessPaymentRequestResult { ErrorMessage = errorMessage };
     }
 
     private static PostProcessPaymentRequestResult PaymentPending(
@@ -205,15 +204,11 @@ public class CyberSourcePaymentMethod(
     )
     {
         var transactionMessage = response.ErrorInformation.Message;
+        var errorMessage = $"Your transaction was held for review: {transactionMessage}";
+        payment.ProcessPaymentResult = new ProcessPaymentRequestResult { ErrorMessage = errorMessage };
+        payment.Comment = $"{errorMessage}{Environment.NewLine}";
 
-        payment.ProcessPaymentResult = new ProcessPaymentRequestResult
-        {
-            ErrorMessage = $"Your transaction was held for review: {transactionMessage}",
-        };
-        payment.Comment = $"{payment.ProcessPaymentResult.ErrorMessage}{Environment.NewLine}";
-
-        return new PostProcessPaymentRequestResult { ErrorMessage = payment.ProcessPaymentResult.ErrorMessage };
-
+        return new PostProcessPaymentRequestResult { ErrorMessage = errorMessage };
     }
 
     private static PostProcessPaymentRequestResult PaymentInvalid(
@@ -222,16 +217,13 @@ public class CyberSourcePaymentMethod(
     )
     {
         var transactionMessage = response.ErrorInformation.Message;
+        var errorMessage = $"There was an error processing your transaction: {transactionMessage}";
 
         payment.Status = PaymentStatus.Error.ToString();
-        payment.ProcessPaymentResult = new ProcessPaymentRequestResult
-        {
-            ErrorMessage = $"There was an error processing your transaction: {transactionMessage}",
-        };
-        payment.Comment = $"{payment.ProcessPaymentResult.ErrorMessage}{Environment.NewLine}";
+        payment.ProcessPaymentResult = new ProcessPaymentRequestResult { ErrorMessage = errorMessage };
+        payment.Comment = $"{errorMessage}{Environment.NewLine}";
 
         return new PostProcessPaymentRequestResult { ErrorMessage = payment.ProcessPaymentResult.ErrorMessage };
-
     }
 
     #endregion

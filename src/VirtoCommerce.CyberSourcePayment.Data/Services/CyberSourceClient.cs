@@ -32,6 +32,7 @@ public class CyberSourceClient(
             .Handle<SecurityTokenException>()
             .Or<SecurityTokenMalformedException>()
             .WaitAndRetryAsync(options.Value.ValidateSignatureRetryCount, _ => TimeSpan.FromMilliseconds(500));
+
         var result = await policy.ExecuteAsync(async () =>
             await GenerateCaptureContextInternal(sandbox, storeUrl, cardTypes));
 
@@ -45,10 +46,12 @@ public class CyberSourceClient(
             [storeUrl],
             cardTypes.ToList()
         );
+
         var config = new CyberSource.Client.Configuration
         {
             MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
         };
+
         var api = new MicroformIntegrationApi(config);
         var jwt = await api.GenerateCaptureContextAsync(request);
 
@@ -93,25 +96,28 @@ public class CyberSourceClient(
     {
         using var userManager = userManagerFactory();
         var user = await userManager.FindByIdAsync(order.CustomerId);
+
         if (user == null)
         {
             throw new InvalidOperationException($"User with id {order.CustomerId} not found");
         }
-        var contact = (Contact)(await memberService.GetByIdAsync(user.MemberId));
 
+        var contact = (Contact)(await memberService.GetByIdAsync(user.MemberId));
         var request = GeneratePaymentRequest(payment, order, contact);
 
         request.TokenInformation ??= new Ptsv2paymentsTokenInformation
         {
-            TransientTokenJwt = token
+            TransientTokenJwt = token,
         };
 
         var config = new CyberSource.Client.Configuration
         {
             MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
         };
+
         var api = new PaymentsApi(config);
         var result = await api.CreatePaymentAsync(request);
+
         return result;
     }
 
@@ -121,6 +127,7 @@ public class CyberSourceClient(
             OrderInformation: GetOrderInfo(payment, order, contact),
             PaymentInformation: new Ptsv2paymentsPaymentInformation()
         );
+
         return result;
     }
 
@@ -167,5 +174,4 @@ public class CyberSourceClient(
 
         return result;
     }
-
 }
