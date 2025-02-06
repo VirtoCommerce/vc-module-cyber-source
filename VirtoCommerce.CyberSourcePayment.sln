@@ -1,0 +1,63 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32630.192
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{4342E27A-6799-4830-972D-E8E775838C89}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VirtoCommerce.CyberSourcePayment.Web", "src\VirtoCommerce.CyberSourcePayment.Web\VirtoCommerce.CyberSourcePayment.Web.csproj", "{932263FA-E862-4E24-9BF8-27E0364D7AF4}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VirtoCommerce.CyberSourcePayment.Data", "src\VirtoCommerce.CyberSourcePayment.Data\VirtoCommerce.CyberSourcePayment.Data.csproj", "{5C06186C-AA13-4588-A41A-E520945FC0A8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VirtoCommerce.CyberSourcePayment.Core", "src\VirtoCommerce.CyberSourcePayment.Core\VirtoCommerce.CyberSourcePayment.Core.csproj", "{4D9306AF-73A0-4581-B3AA-1B5E74EA4989}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{9C12A34A-4DEF-4D60-91A8-385B79829BDA}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VirtoCommerce.CyberSourcePayment.Tests", "tests\VirtoCommerce.CyberSourcePayment.Tests\VirtoCommerce.CyberSourcePayment.Tests.csproj", "{61F937BB-0449-46DC-A7F4-521207AC9057}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{13C4E8A4-6631-475A-8BBA-F1625BCAEEB1}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		.gitignore = .gitignore
+		Directory.Build.props = Directory.Build.props
+		LICENSE = LICENSE
+		module.ignore = module.ignore
+		README.md = README.md
+		VirtoCommerce.CyberSourcePayment.sln.DotSettings = VirtoCommerce.CyberSourcePayment.sln.DotSettings
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{932263FA-E862-4E24-9BF8-27E0364D7AF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{932263FA-E862-4E24-9BF8-27E0364D7AF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{932263FA-E862-4E24-9BF8-27E0364D7AF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{932263FA-E862-4E24-9BF8-27E0364D7AF4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C06186C-AA13-4588-A41A-E520945FC0A8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C06186C-AA13-4588-A41A-E520945FC0A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C06186C-AA13-4588-A41A-E520945FC0A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C06186C-AA13-4588-A41A-E520945FC0A8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D9306AF-73A0-4581-B3AA-1B5E74EA4989}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D9306AF-73A0-4581-B3AA-1B5E74EA4989}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D9306AF-73A0-4581-B3AA-1B5E74EA4989}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D9306AF-73A0-4581-B3AA-1B5E74EA4989}.Release|Any CPU.Build.0 = Release|Any CPU
+		{61F937BB-0449-46DC-A7F4-521207AC9057}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61F937BB-0449-46DC-A7F4-521207AC9057}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61F937BB-0449-46DC-A7F4-521207AC9057}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61F937BB-0449-46DC-A7F4-521207AC9057}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{932263FA-E862-4E24-9BF8-27E0364D7AF4} = {4342E27A-6799-4830-972D-E8E775838C89}
+		{5C06186C-AA13-4588-A41A-E520945FC0A8} = {4342E27A-6799-4830-972D-E8E775838C89}
+		{4D9306AF-73A0-4581-B3AA-1B5E74EA4989} = {4342E27A-6799-4830-972D-E8E775838C89}
+		{61F937BB-0449-46DC-A7F4-521207AC9057} = {9C12A34A-4DEF-4D60-91A8-385B79829BDA}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5FFB60A5-4C65-4CC9-88FB-B7898C62E33E}
+	EndGlobalSection
+EndGlobal
