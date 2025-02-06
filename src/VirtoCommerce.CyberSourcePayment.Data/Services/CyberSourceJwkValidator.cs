@@ -55,7 +55,7 @@ public class CyberSourceJwkValidator(HttpClient httpClient)
         {
             ValidateAudience = false,
             ValidateIssuer = false,
-            ValidateLifetime = false,
+            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = rsaSecurityKey,
         };

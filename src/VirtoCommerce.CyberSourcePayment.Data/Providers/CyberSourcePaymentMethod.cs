@@ -85,7 +85,7 @@ public class CyberSourcePaymentMethod(
         {
             IsSuccess = true,
             NewPaymentStatus = PaymentStatus.Pending,
-            PublicParameters =
+            PublicParameters = new()
             {
                 {"jwt", jwtData.Jwt},
                 {"clientLibraryIntegrity", jwtData.ClientLibraryIntegrity},
