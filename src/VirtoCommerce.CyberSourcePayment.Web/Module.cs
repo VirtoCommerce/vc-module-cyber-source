@@ -31,12 +31,11 @@ public class Module : IModule, IHasConfiguration
     {
         var settingsRegistrar = appBuilder.ApplicationServices.GetRequiredService<ISettingsRegistrar>();
         settingsRegistrar.RegisterSettings(ModuleConstants.Settings.AllSettings, ModuleInfo.Id);
+
         var paymentMethodsRegistrar = appBuilder.ApplicationServices.GetRequiredService<IPaymentMethodsRegistrar>();
-        paymentMethodsRegistrar.RegisterPaymentMethod(() =>
-            appBuilder.ApplicationServices.GetService<CyberSourcePaymentMethod>());
+        paymentMethodsRegistrar.RegisterPaymentMethod(() => appBuilder.ApplicationServices.GetService<CyberSourcePaymentMethod>());
 
         settingsRegistrar.RegisterSettingsForType(ModuleConstants.Settings.General.AllGeneralSettings, nameof(CyberSourcePaymentMethod));
-
         JsonConvert.DefaultSettings = () => new JsonSerializerSettings
         {
             Converters = { new Notificationsubscriptionsv1webhooksNotificationScopeJsonConverter() }
