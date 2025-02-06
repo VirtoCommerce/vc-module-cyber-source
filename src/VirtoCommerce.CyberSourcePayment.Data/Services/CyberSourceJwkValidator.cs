@@ -58,7 +58,6 @@ public class CyberSourceJwkValidator(HttpClient httpClient)
             ValidateLifetime = false,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = rsaSecurityKey,
-            // ValidAlgorithms = [SecurityAlgorithms.HmacSha256]
         };
 
         var handler = new JwtSecurityTokenHandler();

@@ -102,7 +102,7 @@ public class CyberSourcePaymentMethod(
 
     protected virtual async Task<PostProcessPaymentRequestResult> PostProcessPaymentAsync(PostProcessPaymentRequest request)
     {
-        var token = request.Parameters.Get("token"); // todo: should I validate token here?
+        var token = request.Parameters.Get("token");
         var payment = (PaymentIn)request.Payment;
         var order = (CustomerOrder)request.Order;
 

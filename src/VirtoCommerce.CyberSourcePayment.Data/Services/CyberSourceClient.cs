@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Linq;
+using Polly;
 using VirtoCommerce.CustomerModule.Core.Model;
 using VirtoCommerce.CustomerModule.Core.Services;
 using VirtoCommerce.CyberSourcePayment.Core.Models;
@@ -40,60 +41,34 @@ public class CyberSourceClient(
 
     public virtual async Task<JwtKeyModel> GenerateCaptureContext(bool sandbox, string storeUrl, string[] cardTypes)
     {
-        var retryCount = options.Value.ValidateSignatureRetryCount;
-        while (true)
-        {
-            try
-            {
-                var request = new GenerateCaptureContextRequest(
-                    "v2.0",
-                    [storeUrl],
-                    cardTypes.ToList()
-                );
-                var config = new CyberSource.Client.Configuration
-                {
-                    MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
-                };
-                var api = new MicroformIntegrationApi(config);
-                var jwt = await api.GenerateCaptureContextAsync(request);
+        var policy = Policy
+            .Handle<SecurityTokenException>()
+            .Or<SecurityTokenMalformedException>()
+            .WaitAndRetryAsync(options.Value.ValidateSignatureRetryCount, _ => TimeSpan.FromMilliseconds(500));
+        var result = await policy.ExecuteAsync(async () =>
+            await GenerateCaptureContextInternal(sandbox, storeUrl, cardTypes));
 
-                if (retryCount > 0)
-                {
-                    await jwkValidator.VerifyJwt(sandbox, jwt);
-                }
-                return DecodeJwtToJwtKeyModel(jwt);
-            }
-            catch (Exception exception)
-            #region exceptions
-            //catch (SecurityTokenMalformedException)
-            //catch (SecurityTokenException)
-            //catch (SecurityTokenDecryptionFailedException)
-            //catch (SecurityTokenEncryptionKeyNotFoundException)
-            //catch (SecurityTokenValidationException)
-            //catch (SecurityTokenExpiredException)
-            //catch (SecurityTokenInvalidAudienceException)
-            //catch (SecurityTokenInvalidLifetimeException)
-            //catch (SecurityTokenInvalidSignatureException)
-            //catch (SecurityTokenNoExpirationException)
-            //catch (SecurityTokenNotYetValidException)
-            //catch (SecurityTokenReplayAddFailedException)
-            //catch (SecurityTokenReplayDetectedException)
-            #endregion
-            {
-                if (exception is SecurityTokenException || exception is SecurityTokenMalformedException)
-                {
-                    retryCount--;
-                    if (retryCount > 0)
-                    {
-                        continue;
-                    }
-                }
-
-                throw;
-            }
-        }
+        return result;
     }
 
+    protected virtual async Task<JwtKeyModel> GenerateCaptureContextInternal(bool sandbox, string storeUrl, string[] cardTypes)
+    {
+        var request = new GenerateCaptureContextRequest(
+            "v2.0",
+            [storeUrl],
+            cardTypes.ToList()
+        );
+        var config = new CyberSource.Client.Configuration
+        {
+            MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
+        };
+        var api = new MicroformIntegrationApi(config);
+        var jwt = await api.GenerateCaptureContextAsync(request);
+
+        await jwkValidator.VerifyJwt(sandbox, jwt);
+
+        return DecodeJwtToJwtKeyModel(jwt);
+    }
     public static JwtKeyModel DecodeJwtToJwtKeyModel(string jwt)
     {
         var jwtKeyModel = new JwtKeyModel { Jwt = jwt };
