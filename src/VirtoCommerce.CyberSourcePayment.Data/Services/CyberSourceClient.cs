@@ -13,16 +13,23 @@ using Newtonsoft.Json.Linq;
 using Polly;
 using VirtoCommerce.CustomerModule.Core.Model;
 using VirtoCommerce.CustomerModule.Core.Services;
+using VirtoCommerce.CyberSourcePayment.Core;
 using VirtoCommerce.CyberSourcePayment.Core.Models;
 using VirtoCommerce.CyberSourcePayment.Core.Services;
 using VirtoCommerce.OrdersModule.Core.Model;
+using VirtoCommerce.OrdersModule.Core.Services;
 using VirtoCommerce.Platform.Core.Security;
+using VirtoCommerce.Platform.Core.Settings;
+using VirtoCommerce.StoreModule.Core.Services;
 
 namespace VirtoCommerce.CyberSourcePayment.Data.Services;
 
 public class CyberSourceClient(
     IOptions<CyberSourcePaymentMethodOptions> options,
     IMemberService memberService,
+    ICustomerOrderService orderService,
+    IStoreService storeService,
+    ISettingsManager settingsManager,
     Func<UserManager<ApplicationUser>> userManagerFactory,
     CyberSourceJwkValidator jwkValidator
     ) : ICyberSourceClient
@@ -115,9 +122,30 @@ public class CyberSourceClient(
         return result;
     }
 
-    public async Task UpdatePaymentStatus(bool sandbox, string token, PaymentIn payment, CustomerOrder order)
+    public async Task RefreshPaymentStatus(PaymentIn payment)
     {
+        var order = (await orderService.GetAsync([payment.OrderId])).First();
+        var store = (await storeService.GetAsync([order.StoreId])).First();
+        await settingsManager.DeepLoadSettingsAsync(store);
+        var sandbox = store.Settings.GetValue<bool>(ModuleConstants.Settings.General.CyberSourceSandbox);
 
+        var config = CreateCyberSourceClientConfig(sandbox);
+        var api = new PaymentsApi(config);
+
+        var request = new RefreshPaymentStatusRequest
+        {
+            PaymentInformation = new Ptsv2refreshpaymentstatusidPaymentInformation
+            {
+
+            }
+        };
+
+        var result = await api.RefreshPaymentStatusAsync("7391863902956787104805", request);
+        switch (result.Status)
+        {
+            default:
+                return;
+        }
     }
 
     protected virtual Configuration CreateCyberSourceClientConfig(bool sandbox)

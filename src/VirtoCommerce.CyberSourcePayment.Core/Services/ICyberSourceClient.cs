@@ -9,5 +9,5 @@ public interface ICyberSourceClient
 {
     Task<JwtKeyModel> GenerateCaptureContext(bool sandbox, string storeUrl, string[] cardTypes);
     Task<PtsV2PaymentsPost201Response> ProcessPayment(bool sandbox, string token, PaymentIn payment, CustomerOrder order);
-    Task UpdatePaymentStatus(bool sandbox, string token, PaymentIn payment, CustomerOrder order);
+    Task RefreshPaymentStatus(PaymentIn payment);
 }

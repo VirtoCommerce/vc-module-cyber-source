@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
 using VirtoCommerce.CyberSourcePayment.Core;
 using VirtoCommerce.CyberSourcePayment.Core.Models;
 using VirtoCommerce.CyberSourcePayment.Core.Services;
@@ -36,10 +35,6 @@ public class Module : IModule, IHasConfiguration
         paymentMethodsRegistrar.RegisterPaymentMethod(() => appBuilder.ApplicationServices.GetService<CyberSourcePaymentMethod>());
 
         settingsRegistrar.RegisterSettingsForType(ModuleConstants.Settings.General.AllGeneralSettings, nameof(CyberSourcePaymentMethod));
-        JsonConvert.DefaultSettings = () => new JsonSerializerSettings
-        {
-            Converters = { new Notificationsubscriptionsv1webhooksNotificationScopeJsonConverter() }
-        };
     }
 
     public void Uninstall()

@@ -129,11 +129,11 @@ public class CyberSourcePaymentMethod(
         "DECLINED" => PaymentDeclined(response, payment),
 
         "PARTIAL_AUTHORIZED"
-            or "AUTHORIZED_PENDING_REVIEW"
-            or "AUTHORIZED_RISK_DECLINED"
             or "INVALID_REQUEST" => PaymentInvalid(response, payment),
 
         "PENDING_AUTHENTICATION"
+            or "AUTHORIZED_PENDING_REVIEW"
+            or "AUTHORIZED_RISK_DECLINED"
             or "PENDING_REVIEW" => PaymentPending(response, payment),
 
         _ => new PostProcessPaymentRequestResult
@@ -207,6 +207,8 @@ public class CyberSourcePaymentMethod(
         var errorMessage = $"Your transaction was held for review: {transactionMessage}";
         payment.ProcessPaymentResult = new ProcessPaymentRequestResult { ErrorMessage = errorMessage };
         payment.Comment = $"{errorMessage}{Environment.NewLine}";
+        payment.OuterId = response.ProcessorInformation.TransactionId;
+        payment.Status = PaymentStatus.Pending.ToString();
 
         return new PostProcessPaymentRequestResult { ErrorMessage = errorMessage };
     }
