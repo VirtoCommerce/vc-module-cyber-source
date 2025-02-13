@@ -117,29 +117,25 @@ public class CyberSourcePaymentMethod(
 
     protected virtual async Task<CapturePaymentRequestResult> CaptureProcessPaymentAsync(CapturePaymentRequest context)
     {
-        var transactionRequest = PrepareCapturePaymentRequest(context);
-        var captureResult = await cyberSourceClient.CapturePayment(transactionRequest);
+        var captureRequest = PrepareCapturePaymentRequest(context);
+        var captureResult = await cyberSourceClient.CapturePayment(captureRequest);
+
+        if (captureResult.Status != CyberSourceRequest.PaymentStatus.Pending
+            && captureResult.Status != CyberSourceRequest.PaymentStatus.Transmitted)
+        {
+            throw new InvalidOperationException($"{captureResult.Status}: {captureResult.ProcessorInformation.ProviderResponse})");
+        }
 
         var result = new CapturePaymentRequestResult
         {
-            IsSuccess = captureResult.Status == "PENDING"
+            IsSuccess = true,
+            NewPaymentStatus = captureRequest.IsFinal ? PaymentStatus.Paid : PaymentStatus.Authorized,
         };
-
-
-
-
-        //if (captureResult.TransactionResponse == TransactionResponse.Approved)
-        //{
-        //    result.IsSuccess = true;
-        //    result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Paid;
-        //    payment.Status = payment.PaymentStatus.ToString();
-        //    payment.IsApproved = true;
-        //    payment.CapturedDate = DateTime.UtcNow;
-        //}
-        //else
-        //{
-        //    throw new InvalidOperationException($"{captureResult.TransactionResponse} ({captureResult.TransactionMessage.Code}:{captureResult.TransactionMessage.Description})");
-        //}
+        var payment = (PaymentIn)context.Payment;
+        payment.PaymentStatus = result.NewPaymentStatus;
+        payment.Status = result.NewPaymentStatus.ToString();
+        payment.IsApproved = true;
+        payment.CapturedDate = DateTime.UtcNow;
 
         return result;
 
@@ -148,16 +144,18 @@ public class CyberSourcePaymentMethod(
     protected virtual async Task<RefundPaymentRequestResult> RefundProcessPaymentAsync(RefundPaymentRequest context)
     {
         var payment = (PaymentIn)context.Payment;
-        var transactionRequest = PrepareRefundPaymentRequest(payment);
-        var refundResult = await cyberSourceClient.RefundPayment(transactionRequest);
+        var refundRequest = PrepareRefundPaymentRequest(payment);
+        var refundResult = await cyberSourceClient.RefundPayment(refundRequest);
 
-        var result = new RefundPaymentRequestResult
-        {
-            NewPaymentStatus = PaymentStatus.Paid,
-        };
+        var result = new RefundPaymentRequestResult();
 
         if (refundResult.Status == CyberSourceRequest.PaymentStatus.Pending)
         {
+            result.IsSuccess = true;
+            result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Refunded;
+            payment.Status = result.NewPaymentStatus.ToString();
+            payment.VoidedDate = DateTime.UtcNow;
+
         }
 
         return result;
@@ -169,13 +167,17 @@ public class CyberSourcePaymentMethod(
         var transactionRequest = PrepareVoidPaymentRequest(payment);
         var voidResult = await cyberSourceClient.VoidPayment(transactionRequest);
 
-        var result = new VoidPaymentRequestResult
-        {
-            NewPaymentStatus = PaymentStatus.Cancelled,
-        };
+        var result = new VoidPaymentRequestResult();
 
-        if (voidResult.Status == CyberSourceRequest.PaymentStatus.Pending)
+        if (voidResult.Status == CyberSourceRequest.PaymentStatus.Voided
+             || voidResult.Status == CyberSourceRequest.PaymentStatus.Cancelled)
         {
+            result.IsSuccess = true;
+            result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Voided;
+
+            payment.IsCancelled = true;
+            payment.Status = PaymentStatus.Voided.ToString();
+            payment.VoidedDate = payment.CancelledDate = DateTime.UtcNow;
         }
 
         return result;
@@ -259,7 +261,7 @@ public class CyberSourcePaymentMethod(
 
     #region Post Process Results
 
-    private static PostProcessPaymentRequestResult GetPostPaymentResult(
+    private PostProcessPaymentRequestResult GetPostPaymentResult(
         PtsV2PaymentsPost201Response response,
         PaymentIn payment,
         CustomerOrder order
@@ -268,15 +270,18 @@ public class CyberSourcePaymentMethod(
         // PtsV2PaymentsPost201Response described here
         // https://github.com/CyberSource/cybersource-rest-client-node/blob/master/docs/PtsV2PaymentsPost201Response.md
         CyberSourceRequest.PaymentStatus.Authorized => PaymentApproved(response, payment, order),
-        CyberSourceRequest.PaymentStatus.Declined => PaymentDeclined(response, payment),
+        CyberSourceRequest.PaymentStatus.Declined
+            or CyberSourceRequest.PaymentStatus.AuthorizedRiskDeclined
+            => PaymentDeclined(response, payment),
 
         CyberSourceRequest.PaymentStatus.InvalidRequest => PaymentInvalid(response, payment),
 
         CyberSourceRequest.PaymentStatus.PendingAuthentication
             or CyberSourceRequest.PaymentStatus.PartialAuthorized
             or CyberSourceRequest.PaymentStatus.AuthorizedPendingReview
-            or CyberSourceRequest.PaymentStatus.AuthorizedRiskDeclined
-            or CyberSourceRequest.PaymentStatus.PendingReview => PaymentPending(response, payment),
+            or CyberSourceRequest.PaymentStatus.PendingReview
+            or CyberSourceRequest.PaymentStatus.Pending
+            or CyberSourceRequest.PaymentStatus.Transmitted => PaymentPending(response, payment),
 
         _ => new PostProcessPaymentRequestResult
         {
@@ -287,7 +292,7 @@ public class CyberSourcePaymentMethod(
     };
 
 
-    private static PostProcessPaymentRequestResult PaymentApproved(
+    private PostProcessPaymentRequestResult PaymentApproved(
         PtsV2PaymentsPost201Response response,
         PaymentIn payment,
         CustomerOrder order
@@ -295,12 +300,13 @@ public class CyberSourcePaymentMethod(
     {
         var result = new PostProcessPaymentRequestResult
         {
-            NewPaymentStatus = PaymentStatus.Authorized,
+            NewPaymentStatus = SingleMessageMode ? PaymentStatus.Paid : PaymentStatus.Authorized,
             OrderId = order.Id,
             OuterId = response.Id,
             IsSuccess = true,
         };
 
+        payment.PaymentStatus = result.NewPaymentStatus;
         payment.Status = result.NewPaymentStatus.ToString();
         payment.IsApproved = true;
         payment.OuterId = result.OuterId;

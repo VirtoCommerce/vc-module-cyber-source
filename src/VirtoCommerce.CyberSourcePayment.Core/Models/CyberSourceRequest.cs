@@ -14,6 +14,9 @@ public class CyberSourceRequest
         public const string PendingReview = "PENDING_REVIEW";
         public const string Pending = "PENDING";
         public const string Transmitted = "TRANSMITTED";
+        public const string Voided = "VOIDED";
+        public const string Cancelled = "CANCELLED";
+        public const string Failed = "FAILED";
     }
 
     public bool Sandbox { get; set; }
