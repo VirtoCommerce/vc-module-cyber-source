@@ -9,6 +9,6 @@ public interface ICyberSourceClient
     Task<JwtKeyModel> GenerateCaptureContext(CyberSourceRequestContext context);
     Task<PtsV2PaymentsPost201Response> ProcessPayment(CyberSourceProcessPaymentRequest request);
     Task<PtsV2PaymentsCapturesPost201Response> CapturePayment(CyberSourceCapturePaymentRequest request);
-    Task<PtsV2PaymentsRefundPost201Response> RefundPayment(CyberSourceRequest request);
-    Task<PtsV2PaymentsVoidsPost201Response> VoidPayment(CyberSourceRequest request);
+    Task<PtsV2PaymentsRefundPost201Response> RefundPayment(CyberSourceRefundPaymentRequest request);
+    Task<PtsV2PaymentsVoidsPost201Response> VoidPayment(CyberSourceVoidPaymentRequest request);
 }

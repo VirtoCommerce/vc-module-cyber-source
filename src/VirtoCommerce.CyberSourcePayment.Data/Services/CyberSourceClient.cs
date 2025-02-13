@@ -98,28 +98,37 @@ public class CyberSourceClient(
         return result;
     }
 
-    public virtual async Task<PtsV2PaymentsRefundPost201Response> RefundPayment(CyberSourceRequest request)
+    public virtual async Task<PtsV2PaymentsRefundPost201Response> RefundPayment(CyberSourceRefundPaymentRequest request)
     {
         var config = CreateConfiguration(request.Sandbox);
         var api = new RefundApi(config);
 
         var refundRequest = new RefundPaymentRequest
         {
-            // todo: fill the request
+            OrderInformation = new Ptsv2paymentsidrefundsOrderInformation
+            {
+                AmountDetails = new Ptsv2paymentsidcapturesOrderInformationAmountDetails
+                {
+                    TotalAmount = request.Payment.Total.ToString(CultureInfo.InvariantCulture),
+                },
+            },
         };
 
         var result = await api.RefundPaymentAsync(refundRequest, request.OuterPaymentId);
         return result;
     }
 
-    public virtual async Task<PtsV2PaymentsVoidsPost201Response> VoidPayment(CyberSourceRequest request)
+    public virtual async Task<PtsV2PaymentsVoidsPost201Response> VoidPayment(CyberSourceVoidPaymentRequest request)
     {
         var config = CreateConfiguration(request.Sandbox);
         var api = new VoidApi(config);
 
         var voidRequest = new VoidPaymentRequest
         {
-            // todo: fill the request
+            ClientReferenceInformation = new Ptsv2paymentsidreversalsClientReferenceInformation
+            {
+                Code = request.Payment.CustomerId
+            }
         };
 
         var result = await api.VoidPaymentAsync(voidRequest, request.OuterPaymentId);

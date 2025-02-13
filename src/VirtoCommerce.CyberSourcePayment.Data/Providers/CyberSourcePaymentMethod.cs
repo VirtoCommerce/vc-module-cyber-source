@@ -237,22 +237,24 @@ public class CyberSourcePaymentMethod(
         return result;
     }
 
-    protected virtual CyberSourceRequest PrepareRefundPaymentRequest(PaymentIn payment)
+    protected virtual CyberSourceRefundPaymentRequest PrepareRefundPaymentRequest(PaymentIn payment)
     {
-        var result = AbstractTypeFactory<CyberSourceRequest>.TryCreateInstance();
+        var result = AbstractTypeFactory<CyberSourceRefundPaymentRequest>.TryCreateInstance();
 
         result.OuterPaymentId = payment.OuterId;
         result.Sandbox = Sandbox;
+        result.Payment = payment;
 
         return result;
     }
 
-    protected virtual CyberSourceRequest PrepareVoidPaymentRequest(PaymentIn payment)
+    protected virtual CyberSourceVoidPaymentRequest PrepareVoidPaymentRequest(PaymentIn payment)
     {
-        var result = AbstractTypeFactory<CyberSourceRequest>.TryCreateInstance();
+        var result = AbstractTypeFactory<CyberSourceVoidPaymentRequest>.TryCreateInstance();
 
         result.OuterPaymentId = payment.OuterId;
         result.Sandbox = Sandbox;
+        result.Payment = payment;
 
         return result;
     }
