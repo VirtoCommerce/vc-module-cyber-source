@@ -1,13 +1,15 @@
 using System.Threading.Tasks;
 using CyberSource.Model;
 using VirtoCommerce.CyberSourcePayment.Core.Models;
-using VirtoCommerce.OrdersModule.Core.Model;
 
 namespace VirtoCommerce.CyberSourcePayment.Core.Services;
 
 public interface ICyberSourceClient
 {
-    Task<JwtKeyModel> GenerateCaptureContext(bool sandbox, string storeUrl, string[] cardTypes);
-    Task<PtsV2PaymentsPost201Response> ProcessPayment(bool sandbox, string token, PaymentIn payment, CustomerOrder order);
+    Task<JwtKeyModel> GenerateCaptureContext(CyberSourceRequestContext context);
+    Task<PtsV2PaymentsPost201Response> ProcessPayment(CyberSourceProcessPaymentRequest request);
     Task RefreshPaymentStatus(PaymentIn payment);
+    Task<PtsV2PaymentsCapturesPost201Response> CapturePayment(CyberSourceCapturePaymentRequest request);
+    Task<PtsV2PaymentsRefundPost201Response> RefundPayment(CyberSourceRefundPaymentRequest request);
+    Task<PtsV2PaymentsVoidsPost201Response> VoidPayment(CyberSourceVoidPaymentRequest request);
 }

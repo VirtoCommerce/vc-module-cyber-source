@@ -34,7 +34,7 @@ public class CyberSourceClient(
     CyberSourceJwkValidator jwkValidator
     ) : ICyberSourceClient
 {
-    public virtual async Task<JwtKeyModel> GenerateCaptureContext(bool sandbox, string storeUrl, string[] cardTypes)
+    public virtual async Task<JwtKeyModel> GenerateCaptureContext(CyberSourceRequestContext context)
     {
         var policy = Policy
             .Handle<SecurityTokenException>()
@@ -42,26 +42,104 @@ public class CyberSourceClient(
             .WaitAndRetryAsync(options.Value.ValidateSignatureRetryCount, _ => TimeSpan.FromMilliseconds(500));
 
         var result = await policy.ExecuteAsync(async () =>
-            await GenerateCaptureContextInternal(sandbox, storeUrl, cardTypes));
+            await GenerateCaptureContextInternal(context));
 
         return result;
     }
 
-    protected virtual async Task<JwtKeyModel> GenerateCaptureContextInternal(bool sandbox, string storeUrl, string[] cardTypes)
+    protected virtual async Task<JwtKeyModel> GenerateCaptureContextInternal(CyberSourceRequestContext context)
     {
         var request = new GenerateCaptureContextRequest(
             "v2.0",
-            [storeUrl],
-            cardTypes.ToList()
+            [context.StoreUrl],
+            context.CardTypes.ToList()
         );
         var config = CreateCyberSourceClientConfig(sandbox);
-
+        var config = CreateConfiguration(context.Sandbox);
         var api = new MicroformIntegrationApi(config);
         var jwt = await api.GenerateCaptureContextAsync(request);
 
-        await jwkValidator.VerifyJwt(sandbox, jwt);
+        await jwkValidator.VerifyJwt(context.Sandbox, jwt);
 
         return DecodeJwtToJwtKeyModel(jwt);
+    }
+
+    public virtual async Task<PtsV2PaymentsPost201Response> ProcessPayment(CyberSourceProcessPaymentRequest request)
+    {
+        var processRequest = await GeneratePaymentRequest(request);
+
+        processRequest.TokenInformation ??= new Ptsv2paymentsTokenInformation
+        {
+            TransientTokenJwt = request.Token,
+        };
+
+        var config = CreateConfiguration(request.Sandbox);
+        var api = new PaymentsApi(config);
+        var result = await api.CreatePaymentAsync(processRequest);
+
+        return result;
+    }
+
+    public virtual async Task<PtsV2PaymentsCapturesPost201Response> CapturePayment(CyberSourceCapturePaymentRequest request)
+    {
+        var config = CreateConfiguration(request.Sandbox);
+        var api = new CaptureApi(config);
+
+        var orderInfo = await GetCaptureOrderInfo(request);
+        var captureRequest = new CapturePaymentRequest
+        {
+            OrderInformation = orderInfo,
+            ProcessingInformation = new Ptsv2paymentsidcapturesProcessingInformation
+            {
+                CaptureOptions = new Ptsv2paymentsidcapturesProcessingInformationCaptureOptions
+                {
+                    CaptureSequenceNumber = request.PaymentNumber,
+                    TotalCaptureCount = request.IsFinal ? request.PaymentNumber : request.PaymentNumber + 1,
+                    IsFinal = request.IsFinal.ToString().ToLowerInvariant(),
+                    Notes = request.Notes,
+                }
+            }
+        };
+
+        var result = await api.CapturePaymentAsync(captureRequest, request.OuterPaymentId);
+        return result;
+    }
+
+    public virtual async Task<PtsV2PaymentsRefundPost201Response> RefundPayment(CyberSourceRefundPaymentRequest request)
+    {
+        var config = CreateConfiguration(request.Sandbox);
+        var api = new RefundApi(config);
+
+        var refundRequest = new RefundPaymentRequest
+        {
+            OrderInformation = new Ptsv2paymentsidrefundsOrderInformation
+            {
+                AmountDetails = new Ptsv2paymentsidcapturesOrderInformationAmountDetails
+                {
+                    TotalAmount = request.Payment.Total.ToString(CultureInfo.InvariantCulture),
+                },
+            },
+        };
+
+        var result = await api.RefundPaymentAsync(refundRequest, request.OuterPaymentId);
+        return result;
+    }
+
+    public virtual async Task<PtsV2PaymentsVoidsPost201Response> VoidPayment(CyberSourceVoidPaymentRequest request)
+    {
+        var config = CreateConfiguration(request.Sandbox);
+        var api = new VoidApi(config);
+
+        var voidRequest = new VoidPaymentRequest
+        {
+            ClientReferenceInformation = new Ptsv2paymentsidreversalsClientReferenceInformation
+            {
+                Code = request.Payment.CustomerId
+            }
+        };
+
+        var result = await api.VoidPaymentAsync(voidRequest, request.OuterPaymentId);
+        return result;
     }
 
     public static JwtKeyModel DecodeJwtToJwtKeyModel(string jwt)
@@ -96,7 +174,21 @@ public class CyberSourceClient(
         return jwtKeyModel;
     }
 
-    public virtual async Task<PtsV2PaymentsPost201Response> ProcessPayment(bool sandbox, string token, PaymentIn payment, CustomerOrder order)
+    protected virtual async Task<CreatePaymentRequest> GeneratePaymentRequest(CyberSourceProcessPaymentRequest request)
+    {
+        var result = new CreatePaymentRequest(
+            OrderInformation: await GetOrderInfo(request.Payment, request.Order),
+            PaymentInformation: new Ptsv2paymentsPaymentInformation(),
+            ProcessingInformation: new Ptsv2paymentsProcessingInformation
+            {
+                Capture = request.SingleMessageMode,
+            }
+        );
+
+        return result;
+    }
+
+    protected virtual async Task<Ptsv2paymentsOrderInformation> GetOrderInfo(PaymentIn payment, CustomerOrder order)
     {
         using var userManager = userManagerFactory();
         var user = await userManager.FindByIdAsync(order.CustomerId);
@@ -107,17 +199,43 @@ public class CyberSourceClient(
         }
 
         var contact = (Contact)(await memberService.GetByIdAsync(user.MemberId));
-        var request = GeneratePaymentRequest(payment, order, contact);
+        var email = contact.Emails.FirstOrDefault()
+                    ?? contact.SecurityAccounts.Select(x => x.Email).FirstOrDefault();
 
-        request.TokenInformation ??= new Ptsv2paymentsTokenInformation
+        var result = new Ptsv2paymentsOrderInformation
         {
-            TransientTokenJwt = token,
-        };
-
-        var config = CreateCyberSourceClientConfig(sandbox);
-
-        var api = new PaymentsApi(config);
-        var result = await api.CreatePaymentAsync(request);
+            BillTo = new Ptsv2paymentsOrderInformationBillTo
+            {
+                Locality = payment.BillingAddress.City,
+                LastName = contact.LastName,
+                FirstName = contact.FirstName,
+                MiddleName = contact.MiddleName,
+                Email = email,
+                Address1 = payment.BillingAddress.Line1,
+                Address2 = payment.BillingAddress.Line2,
+                Country = payment.BillingAddress.CountryName,
+                AdministrativeArea = payment.BillingAddress.RegionName,
+                PostalCode = payment.BillingAddress.PostalCode,
+            },
+            LineItems = order.Items.Select(x => new Ptsv2paymentsOrderInformationLineItems
+            {
+                ProductName = x.Name,
+                ProductSku = x.Sku,
+                ProductCode = x.Id,
+                DiscountAmount = x.DiscountAmount.ToString(CultureInfo.InvariantCulture),
+                TaxAmount = x.TaxTotal.ToString(CultureInfo.InvariantCulture),
+                TotalAmount = x.PlacedPrice.ToString(CultureInfo.InvariantCulture),
+                UnitPrice = x.Price.ToString(CultureInfo.InvariantCulture),
+                Gift = x.IsGift,
+                Quantity = x.Quantity,
+            }).ToList(),
+            AmountDetails = new Ptsv2paymentsOrderInformationAmountDetails
+            {
+                DiscountAmount = order.DiscountAmount.ToString(CultureInfo.InvariantCulture),
+                TaxAmount = order.TaxTotal.ToString(CultureInfo.InvariantCulture),
+                TotalAmount = order.Total.ToString(CultureInfo.InvariantCulture),
+                Currency = order.Currency,
+            },
 
         return result;
     }
@@ -156,24 +274,26 @@ public class CyberSourceClient(
         };
     }
 
-    protected virtual CreatePaymentRequest GeneratePaymentRequest(PaymentIn payment, CustomerOrder order, Contact contact)
+    protected virtual async Task<Ptsv2paymentsidcapturesOrderInformation> GetCaptureOrderInfo(CyberSourceCapturePaymentRequest request)
     {
-        var result = new CreatePaymentRequest(
-            OrderInformation: GetOrderInfo(payment, order, contact),
-            PaymentInformation: new Ptsv2paymentsPaymentInformation()
-        );
+        using var userManager = userManagerFactory();
+        var user = await userManager.FindByIdAsync(request.Order.CustomerId);
 
-        return result;
-    }
+        if (user == null)
+        {
+            throw new InvalidOperationException($"User with id {request.Order.CustomerId} not found");
+        }
 
-    private static Ptsv2paymentsOrderInformation GetOrderInfo(PaymentIn payment, CustomerOrder order, Contact contact)
-    {
+        var contact = (Contact)(await memberService.GetByIdAsync(user.MemberId));
         var email = contact.Emails.FirstOrDefault()
                     ?? contact.SecurityAccounts.Select(x => x.Email).FirstOrDefault();
 
-        var result = new Ptsv2paymentsOrderInformation
+        var payment = request.Payment;
+        var order = request.Order;
+
+        var result = new Ptsv2paymentsidcapturesOrderInformation
         {
-            BillTo = new Ptsv2paymentsOrderInformationBillTo
+            BillTo = new Ptsv2paymentsidcapturesOrderInformationBillTo
             {
                 Locality = payment.BillingAddress.City,
                 LastName = contact.LastName,
@@ -198,15 +318,23 @@ public class CyberSourceClient(
                 Gift = x.IsGift,
                 Quantity = x.Quantity,
             }).ToList(),
-            AmountDetails = new Ptsv2paymentsOrderInformationAmountDetails
+            AmountDetails = new Ptsv2paymentsidcapturesOrderInformationAmountDetails
             {
-                DiscountAmount = order.DiscountAmount.ToString(CultureInfo.InvariantCulture),
-                TaxAmount = order.TaxTotal.ToString(CultureInfo.InvariantCulture),
-                TotalAmount = order.Total.ToString(CultureInfo.InvariantCulture),
+                //DiscountAmount = order.DiscountAmount.ToString(CultureInfo.InvariantCulture),
+                //TaxAmount = order.TaxTotal.ToString(CultureInfo.InvariantCulture),
+                TotalAmount = (request.Amount ?? order.Total).ToString(CultureInfo.InvariantCulture),
                 Currency = order.Currency,
             },
         };
 
         return result;
+    }
+
+    protected virtual Configuration CreateConfiguration(bool sandbox)
+    {
+        return new Configuration
+        {
+            MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
+        };
     }
 }
