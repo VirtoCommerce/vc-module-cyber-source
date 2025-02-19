@@ -18,11 +18,11 @@ public class PaymentsController(
     [Route("{paymentId}")]
     [AllowAnonymous] // todo: remove
 
-    public virtual async Task<IActionResult> RefreshPaymentStatus(string paymentId)
+    public virtual async Task<IActionResult> RefreshPaymentStatus(string paymentId, string outerId)
     {
         // TODO: user validation??
         var payment = (await paymentService.GetAsync([paymentId])).First();
-        await client.RefreshPaymentStatus(payment);
-        return Ok();
+        var result = await client.RefreshPaymentStatus(payment, outerId);
+        return Ok(result);
     }
 }

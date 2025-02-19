@@ -54,7 +54,6 @@ public class CyberSourceClient(
             [context.StoreUrl],
             context.CardTypes.ToList()
         );
-        var config = CreateCyberSourceClientConfig(sandbox);
         var config = CreateConfiguration(context.Sandbox);
         var api = new MicroformIntegrationApi(config);
         var jwt = await api.GenerateCaptureContextAsync(request);
@@ -236,33 +235,51 @@ public class CyberSourceClient(
                 TotalAmount = order.Total.ToString(CultureInfo.InvariantCulture),
                 Currency = order.Currency,
             },
-
+        };
         return result;
     }
 
-    public async Task RefreshPaymentStatus(PaymentIn payment)
+    public async Task<PtsV2PaymentsPost201Response1> RefreshPaymentStatus(PaymentIn payment, string outerId)
     {
         var order = (await orderService.GetAsync([payment.OrderId])).First();
         var store = (await storeService.GetAsync([order.StoreId])).First();
         await settingsManager.DeepLoadSettingsAsync(store);
-        var sandbox = store.Settings.GetValue<bool>(ModuleConstants.Settings.General.CyberSourceSandbox);
+        var sandbox = store.Settings.GetValue<bool>(ModuleConstants.Settings.General.Sandbox);
 
         var config = CreateCyberSourceClientConfig(sandbox);
         var api = new PaymentsApi(config);
 
         var request = new RefreshPaymentStatusRequest
         {
+            ProcessingInformation = new Ptsv2refreshpaymentstatusidProcessingInformation(),
+            AgreementInformation = new Ptsv2refreshpaymentstatusidAgreementInformation(),
+            ClientReferenceInformation = new Ptsv2refreshpaymentstatusidClientReferenceInformation
+            {
+                Code = payment.CustomerId
+            },
             PaymentInformation = new Ptsv2refreshpaymentstatusidPaymentInformation
             {
-
+                Customer = new Ptsv2refreshpaymentstatusidPaymentInformationCustomer
+                {
+                    CustomerId = payment.CustomerId
+                },
+                PaymentType = new Ptsv2refreshpaymentstatusidPaymentInformationPaymentType()
             }
         };
 
-        var result = await api.RefreshPaymentStatusAsync("7391863902956787104805", request);
-        switch (result.Status)
+        try
         {
-            default:
-                return;
+            var result = await api.RefreshPaymentStatusAsync(outerId ?? payment.OuterId, request);
+
+            //var api = new TransactionDetailsApi(config);
+            //var result = await api.GetTransactionAsync(outerId ?? payment.OuterId);
+
+
+            return result;
+        }
+        catch (ApiException ex)
+        {
+            throw new InvalidOperationException($"Error refreshing payment status: {ex.Message}", ex);
         }
     }
 
