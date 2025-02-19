@@ -365,6 +365,7 @@ public class CyberSourcePaymentMethod(
 
         return new PostProcessPaymentRequestResult
         {
+            NewPaymentStatus = PaymentStatus.Pending,
             ErrorMessage = errorMessage,
             IsSuccess = true,
         };

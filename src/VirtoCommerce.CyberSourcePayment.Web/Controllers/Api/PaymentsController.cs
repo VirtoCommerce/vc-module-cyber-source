@@ -15,7 +15,7 @@ public class PaymentsController(
 ) : Controller
 {
     [HttpPost]
-    [Route("{paymentId}")]
+    [Route("refresh-payment-status/{paymentId}")]
     public virtual async Task<IActionResult> RefreshPaymentStatus(string paymentId)
     {
         var payment = (await paymentService.GetAsync([paymentId])).First();

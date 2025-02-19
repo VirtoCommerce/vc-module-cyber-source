@@ -18,6 +18,7 @@ using VirtoCommerce.CyberSourcePayment.Core.Models;
 using VirtoCommerce.CyberSourcePayment.Core.Services;
 using VirtoCommerce.OrdersModule.Core.Model;
 using VirtoCommerce.OrdersModule.Core.Services;
+using VirtoCommerce.PaymentModule.Core.Model;
 using VirtoCommerce.Platform.Core.Security;
 using VirtoCommerce.Platform.Core.Settings;
 using VirtoCommerce.StoreModule.Core.Services;
@@ -241,16 +242,7 @@ public class CyberSourceClient(
 
     public async Task<PaymentIn> RefreshPaymentStatus(PaymentIn payment)
     {
-        string[] pendingStatuses =
-        [
-            CyberSourceRequest.PaymentStatus.PendingAuthentication,
-            CyberSourceRequest.PaymentStatus.PartialAuthorized,
-            CyberSourceRequest.PaymentStatus.AuthorizedPendingReview,
-            CyberSourceRequest.PaymentStatus.PendingReview,
-            CyberSourceRequest.PaymentStatus.Pending,
-            CyberSourceRequest.PaymentStatus.Transmitted
-        ];
-        if (pendingStatuses.Contains(payment.Status))
+        if (payment.Status == PaymentStatus.Pending.ToString())
         {
             var order = (await orderService.GetAsync([payment.OrderId])).First();
             var store = (await storeService.GetAsync([order.StoreId])).First();
@@ -262,12 +254,13 @@ public class CyberSourceClient(
             var api = new TransactionDetailsApi(config);
             var result = await api.GetTransactionAsync(payment.OuterId);
 
-            if (result.Status != CyberSourceRequest.PaymentStatus.Pending)
+            // if (result.Status != CyberSourceRequest.PaymentStatus.Pending)
+            // result.ApplicationInformation.ReasonCode >= 480
+            if (result.Status != null)
             {
                 var paymentToSave = order.InPayments.First(x => x.Id == payment.Id);
                 paymentToSave.Status = result.Status;
                 await orderService.SaveChangesAsync([order]);
-
                 return paymentToSave;
             }
         }
