@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CyberSource.Model;
 using Newtonsoft.Json;
 using VirtoCommerce.CyberSourcePayment.Core;
+using VirtoCommerce.CyberSourcePayment.Core.Models;
 using VirtoCommerce.CyberSourcePayment.Core.Services;
 using VirtoCommerce.OrdersModule.Core.Model;
 using VirtoCommerce.PaymentModule.Core.Model;
@@ -20,12 +21,15 @@ namespace VirtoCommerce.CyberSourcePayment.Data.Providers;
 
 public class CyberSourcePaymentMethod(
     ICyberSourceClient cyberSourceClient)
-    : PaymentMethod(nameof(CyberSourcePaymentMethod))
+    : PaymentMethod(nameof(CyberSourcePaymentMethod)), ISupportCaptureFlow, ISupportRefundFlow
 {
-    private bool Sandbox => Settings.GetValue<bool>(ModuleConstants.Settings.General.CyberSourceSandbox);
+    private bool Sandbox => Settings.GetValue<bool>(ModuleConstants.Settings.General.Sandbox);
+    private bool SingleMessageMode => Settings.GetValue<string>(ModuleConstants.Settings.General.PaymentMode) == ModuleConstants.Settings.SingleMessageMode;
 
     public override PaymentMethodGroupType PaymentMethodGroupType => PaymentMethodGroupType.BankCard;
     public override PaymentMethodType PaymentMethodType => PaymentMethodType.Standard;
+
+    #region overrides
 
     public override ProcessPaymentRequestResult ProcessPayment(ProcessPaymentRequest request)
     {
@@ -47,18 +51,20 @@ public class CyberSourcePaymentMethod(
 
     public override CapturePaymentRequestResult CaptureProcessPayment(CapturePaymentRequest context)
     {
-        throw new NotImplementedException();
+        return CaptureProcessPaymentAsync(context).GetAwaiter().GetResult();
     }
 
     public override RefundPaymentRequestResult RefundProcessPayment(RefundPaymentRequest context)
     {
-        throw new NotImplementedException();
+        return RefundProcessPaymentAsync(context).GetAwaiter().GetResult();
     }
 
     public override VoidPaymentRequestResult VoidProcessPayment(VoidPaymentRequest request)
     {
-        throw new NotImplementedException();
+        return VoidProcessPaymentAsync(request).GetAwaiter().GetResult();
     }
+
+    #endregion
 
     #region protected async methods
 
@@ -72,14 +78,8 @@ public class CyberSourcePaymentMethod(
         }
 
         var url = store.SecureUrl.IsNullOrEmpty() ? store.Url : store.SecureUrl;
-        var cardTypesValue = Settings.GetValue<string>(ModuleConstants.Settings.General.CyberSourceCardTypes);
-
-        var cardTypes = cardTypesValue.Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Where(x => !x.IsNullOrEmpty())
-            .Select(x => x.Trim().ToUpperInvariant())
-            .ToArray();
-
-        var jwtData = await cyberSourceClient.GenerateCaptureContext(Sandbox, url, cardTypes);
+        var generateCaptureContext = PrepareGenerateCaptureContext(url);
+        var jwtData = await cyberSourceClient.GenerateCaptureContext(generateCaptureContext);
 
         var result = new ProcessPaymentRequestResult
         {
@@ -107,9 +107,156 @@ public class CyberSourcePaymentMethod(
         var payment = (PaymentIn)request.Payment;
         var order = (CustomerOrder)request.Order;
 
-        var paymentResult = await cyberSourceClient.ProcessPayment(Sandbox, token, payment, order);
+        var clientRequest = PrepareProcessPaymentRequest(token, payment, order);
+
+        var paymentResult = await cyberSourceClient.ProcessPayment(clientRequest);
 
         var result = GetPostPaymentResult(paymentResult, payment, order);
+        return result;
+    }
+
+    protected virtual async Task<CapturePaymentRequestResult> CaptureProcessPaymentAsync(CapturePaymentRequest context)
+    {
+        var captureRequest = PrepareCapturePaymentRequest(context);
+        var captureResult = await cyberSourceClient.CapturePayment(captureRequest);
+
+        if (captureResult.Status != CyberSourceRequest.PaymentStatus.Pending
+            && captureResult.Status != CyberSourceRequest.PaymentStatus.Transmitted)
+        {
+            throw new InvalidOperationException($"{captureResult.Status}: {captureResult.ProcessorInformation.ProviderResponse})");
+        }
+
+        var result = new CapturePaymentRequestResult
+        {
+            IsSuccess = true,
+            NewPaymentStatus = captureRequest.IsFinal ? PaymentStatus.Paid : PaymentStatus.Authorized,
+        };
+
+        var payment = (PaymentIn)context.Payment;
+
+        payment.PaymentStatus = result.NewPaymentStatus;
+        payment.Status = result.NewPaymentStatus.ToString();
+        payment.IsApproved = true;
+        payment.CapturedDate = DateTime.UtcNow;
+
+        return result;
+    }
+
+    protected virtual async Task<RefundPaymentRequestResult> RefundProcessPaymentAsync(RefundPaymentRequest context)
+    {
+        var payment = (PaymentIn)context.Payment;
+        var refundRequest = PrepareRefundPaymentRequest(payment, context);
+        var refundResult = await cyberSourceClient.RefundPayment(refundRequest);
+
+        var result = new RefundPaymentRequestResult();
+
+        if (refundResult.Status == CyberSourceRequest.PaymentStatus.Pending)
+        {
+            result.IsSuccess = true;
+            result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Refunded;
+            payment.Status = result.NewPaymentStatus.ToString();
+            payment.VoidedDate = DateTime.UtcNow;
+        }
+
+        return result;
+    }
+
+    protected virtual async Task<VoidPaymentRequestResult> VoidProcessPaymentAsync(VoidPaymentRequest request)
+    {
+        var payment = (PaymentIn)request.Payment;
+        var transactionRequest = PrepareVoidPaymentRequest(payment);
+        var voidResult = await cyberSourceClient.VoidPayment(transactionRequest);
+
+        var result = new VoidPaymentRequestResult();
+
+        if (voidResult.Status == CyberSourceRequest.PaymentStatus.Voided
+             || voidResult.Status == CyberSourceRequest.PaymentStatus.Cancelled)
+        {
+            result.IsSuccess = true;
+            result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Voided;
+
+            payment.IsCancelled = true;
+            payment.Status = PaymentStatus.Voided.ToString();
+            payment.VoidedDate = payment.CancelledDate = DateTime.UtcNow;
+        }
+
+        return result;
+    }
+
+    #endregion
+
+    #region prepare requests
+
+    protected virtual CyberSourceRequestContext PrepareGenerateCaptureContext(string url)
+    {
+        var cardTypesValue = Settings.GetValue<string>(ModuleConstants.Settings.General.CardTypes);
+
+        var cardTypes = cardTypesValue.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Where(x => !x.IsNullOrEmpty())
+            .Select(x => x.Trim().ToUpperInvariant())
+            .ToArray();
+
+        var result = AbstractTypeFactory<CyberSourceRequestContext>.TryCreateInstance();
+
+        result.Sandbox = Sandbox;
+        result.CardTypes = cardTypes;
+        result.StoreUrl = url;
+
+        return result;
+    }
+
+    protected virtual CyberSourceProcessPaymentRequest PrepareProcessPaymentRequest(string token, PaymentIn payment, CustomerOrder order)
+    {
+        var result = AbstractTypeFactory<CyberSourceProcessPaymentRequest>.TryCreateInstance();
+
+        result.Token = token;
+        result.Payment = payment;
+        result.Order = order;
+        result.Sandbox = Sandbox;
+        result.SingleMessageMode = SingleMessageMode;
+
+        return result;
+    }
+
+    protected virtual CyberSourceCapturePaymentRequest PrepareCapturePaymentRequest(CapturePaymentRequest context)
+    {
+        var result = AbstractTypeFactory<CyberSourceCapturePaymentRequest>.TryCreateInstance();
+
+        var payment = (PaymentIn)context.Payment;
+        var order = (CustomerOrder)context.Order;
+
+        result.OuterPaymentId = context.OuterId ?? payment.OuterId;
+        result.Sandbox = Sandbox;
+        result.Payment = payment;
+        result.Order = order;
+        result.Amount = context.CaptureAmount;
+        result.PaymentNumber = payment.Captures.Count + 1;
+        result.IsFinal = context.Parameters["CloseTransaction"]?.ToLowerInvariant() == "true";
+        result.Notes = context.Parameters["CaptureDetails"];
+
+        return result;
+    }
+
+    protected virtual CyberSourceRefundPaymentRequest PrepareRefundPaymentRequest(PaymentIn payment, RefundPaymentRequest context)
+    {
+        var result = AbstractTypeFactory<CyberSourceRefundPaymentRequest>.TryCreateInstance();
+
+        result.OuterPaymentId = payment.OuterId;
+        result.Sandbox = Sandbox;
+        result.Payment = payment;
+        result.Amount = context.AmountToRefund;
+
+        return result;
+    }
+
+    protected virtual CyberSourceVoidPaymentRequest PrepareVoidPaymentRequest(PaymentIn payment)
+    {
+        var result = AbstractTypeFactory<CyberSourceVoidPaymentRequest>.TryCreateInstance();
+
+        result.OuterPaymentId = payment.OuterId;
+        result.Sandbox = Sandbox;
+        result.Payment = payment;
+
         return result;
     }
 
@@ -117,7 +264,7 @@ public class CyberSourcePaymentMethod(
 
     #region Post Process Results
 
-    private static PostProcessPaymentRequestResult GetPostPaymentResult(
+    private PostProcessPaymentRequestResult GetPostPaymentResult(
         PtsV2PaymentsPost201Response response,
         PaymentIn payment,
         CustomerOrder order
@@ -125,16 +272,19 @@ public class CyberSourcePaymentMethod(
     {
         // PtsV2PaymentsPost201Response described here
         // https://github.com/CyberSource/cybersource-rest-client-node/blob/master/docs/PtsV2PaymentsPost201Response.md
-        "AUTHORIZED" => PaymentApproved(response, payment, order),
-        "DECLINED" => PaymentDeclined(response, payment),
+        CyberSourceRequest.PaymentStatus.Authorized => PaymentApproved(response, payment, order),
+        CyberSourceRequest.PaymentStatus.Declined
+            or CyberSourceRequest.PaymentStatus.AuthorizedRiskDeclined
+            => PaymentDeclined(response, payment),
 
-        "PARTIAL_AUTHORIZED"
-            or "AUTHORIZED_PENDING_REVIEW"
-            or "AUTHORIZED_RISK_DECLINED"
-            or "INVALID_REQUEST" => PaymentInvalid(response, payment),
+        CyberSourceRequest.PaymentStatus.InvalidRequest => PaymentInvalid(response, payment),
 
-        "PENDING_AUTHENTICATION"
-            or "PENDING_REVIEW" => PaymentPending(response, payment),
+        CyberSourceRequest.PaymentStatus.PendingAuthentication
+            or CyberSourceRequest.PaymentStatus.PartialAuthorized
+            or CyberSourceRequest.PaymentStatus.AuthorizedPendingReview
+            or CyberSourceRequest.PaymentStatus.PendingReview
+            or CyberSourceRequest.PaymentStatus.Pending
+            or CyberSourceRequest.PaymentStatus.Transmitted => PaymentPending(response, payment),
 
         _ => new PostProcessPaymentRequestResult
         {
@@ -145,7 +295,7 @@ public class CyberSourcePaymentMethod(
     };
 
 
-    private static PostProcessPaymentRequestResult PaymentApproved(
+    private PostProcessPaymentRequestResult PaymentApproved(
         PtsV2PaymentsPost201Response response,
         PaymentIn payment,
         CustomerOrder order
@@ -153,14 +303,16 @@ public class CyberSourcePaymentMethod(
     {
         var result = new PostProcessPaymentRequestResult
         {
-            NewPaymentStatus = PaymentStatus.Authorized,
+            NewPaymentStatus = SingleMessageMode ? PaymentStatus.Paid : PaymentStatus.Authorized,
             OrderId = order.Id,
-            OuterId = response.ProcessorInformation.TransactionId,
+            OuterId = response.Id,
             IsSuccess = true,
         };
 
+        payment.PaymentStatus = result.NewPaymentStatus;
         payment.Status = result.NewPaymentStatus.ToString();
         payment.IsApproved = true;
+        payment.OuterId = result.OuterId;
         payment.AuthorizedDate = DateTime.UtcNow;
         payment.CapturedDate = DateTime.UtcNow;
         payment.Comment = $"Paid successfully. Transaction info {response.Id}{Environment.NewLine}";
@@ -207,8 +359,13 @@ public class CyberSourcePaymentMethod(
         var errorMessage = $"Your transaction was held for review: {transactionMessage}";
         payment.ProcessPaymentResult = new ProcessPaymentRequestResult { ErrorMessage = errorMessage };
         payment.Comment = $"{errorMessage}{Environment.NewLine}";
+        payment.OuterId = response.Id;
 
-        return new PostProcessPaymentRequestResult { ErrorMessage = errorMessage };
+        return new PostProcessPaymentRequestResult
+        {
+            ErrorMessage = errorMessage,
+            IsSuccess = true,
+        };
     }
 
     private static PostProcessPaymentRequestResult PaymentInvalid(
