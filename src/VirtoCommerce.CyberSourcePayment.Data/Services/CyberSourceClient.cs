@@ -239,19 +239,40 @@ public class CyberSourceClient(
         return result;
     }
 
-    public async Task<TssV2TransactionsGet200Response> RefreshPaymentStatus(PaymentIn payment)
+    public async Task<PaymentIn> RefreshPaymentStatus(PaymentIn payment)
     {
-        var order = (await orderService.GetAsync([payment.OrderId])).First();
-        var store = (await storeService.GetAsync([order.StoreId])).First();
+        string[] pendingStatuses =
+        [
+            CyberSourceRequest.PaymentStatus.PendingAuthentication,
+            CyberSourceRequest.PaymentStatus.PartialAuthorized,
+            CyberSourceRequest.PaymentStatus.AuthorizedPendingReview,
+            CyberSourceRequest.PaymentStatus.PendingReview,
+            CyberSourceRequest.PaymentStatus.Pending,
+            CyberSourceRequest.PaymentStatus.Transmitted
+        ];
+        if (pendingStatuses.Contains(payment.Status))
+        {
+            var order = (await orderService.GetAsync([payment.OrderId])).First();
+            var store = (await storeService.GetAsync([order.StoreId])).First();
 
-        await settingsManager.DeepLoadSettingsAsync(store);
-        var sandbox = store.Settings.GetValue<bool>(ModuleConstants.Settings.General.Sandbox);
-        var config = CreateCyberSourceClientConfig(sandbox);
+            await settingsManager.DeepLoadSettingsAsync(store);
+            var sandbox = store.Settings.GetValue<bool>(ModuleConstants.Settings.General.Sandbox);
+            var config = CreateCyberSourceClientConfig(sandbox);
 
-        var api = new TransactionDetailsApi(config);
-        var result = await api.GetTransactionAsync(payment.OuterId);
+            var api = new TransactionDetailsApi(config);
+            var result = await api.GetTransactionAsync(payment.OuterId);
 
-        return result;
+            if (result.Status != CyberSourceRequest.PaymentStatus.Pending)
+            {
+                var paymentToSave = order.InPayments.First(x => x.Id == payment.Id);
+                paymentToSave.Status = result.Status;
+                await orderService.SaveChangesAsync([order]);
+
+                return paymentToSave;
+            }
+        }
+
+        return payment;
     }
 
     protected virtual Configuration CreateCyberSourceClientConfig(bool sandbox)

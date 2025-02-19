@@ -279,6 +279,7 @@ public class CyberSourcePaymentMethod(
 
         CyberSourceRequest.PaymentStatus.InvalidRequest => PaymentInvalid(response, payment),
 
+        // note: see the CyberSourceClient.RefreshPaymentStatus method too
         CyberSourceRequest.PaymentStatus.PendingAuthentication
             or CyberSourceRequest.PaymentStatus.PartialAuthorized
             or CyberSourceRequest.PaymentStatus.AuthorizedPendingReview
