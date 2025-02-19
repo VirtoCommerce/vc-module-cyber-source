@@ -109,7 +109,7 @@ public class CyberSourceClient(
             {
                 AmountDetails = new Ptsv2paymentsidcapturesOrderInformationAmountDetails
                 {
-                    TotalAmount = request.Payment.Total.ToString(CultureInfo.InvariantCulture),
+                    TotalAmount = request.Amount.ToString(CultureInfo.InvariantCulture),
                 },
             },
         };

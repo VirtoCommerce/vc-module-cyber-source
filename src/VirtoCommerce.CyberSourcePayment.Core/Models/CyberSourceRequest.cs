@@ -1,3 +1,5 @@
+using VirtoCommerce.OrdersModule.Core.Model;
+
 namespace VirtoCommerce.CyberSourcePayment.Core.Models;
 
 public class CyberSourceRequest
@@ -19,6 +21,7 @@ public class CyberSourceRequest
         public const string Failed = "FAILED";
     }
 
+    public PaymentIn Payment { get; set; }
     public bool Sandbox { get; set; }
     public bool SingleMessageMode { get; set; }
     public string OuterPaymentId { get; set; }
