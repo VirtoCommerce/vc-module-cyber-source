@@ -131,20 +131,21 @@ public class CyberSourcePaymentMethod(
             IsSuccess = true,
             NewPaymentStatus = captureRequest.IsFinal ? PaymentStatus.Paid : PaymentStatus.Authorized,
         };
+
         var payment = (PaymentIn)context.Payment;
+
         payment.PaymentStatus = result.NewPaymentStatus;
         payment.Status = result.NewPaymentStatus.ToString();
         payment.IsApproved = true;
         payment.CapturedDate = DateTime.UtcNow;
 
         return result;
-
     }
 
     protected virtual async Task<RefundPaymentRequestResult> RefundProcessPaymentAsync(RefundPaymentRequest context)
     {
         var payment = (PaymentIn)context.Payment;
-        var refundRequest = PrepareRefundPaymentRequest(payment);
+        var refundRequest = PrepareRefundPaymentRequest(payment, context);
         var refundResult = await cyberSourceClient.RefundPayment(refundRequest);
 
         var result = new RefundPaymentRequestResult();
@@ -155,7 +156,6 @@ public class CyberSourcePaymentMethod(
             result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Refunded;
             payment.Status = result.NewPaymentStatus.ToString();
             payment.VoidedDate = DateTime.UtcNow;
-
         }
 
         return result;
@@ -237,13 +237,14 @@ public class CyberSourcePaymentMethod(
         return result;
     }
 
-    protected virtual CyberSourceRefundPaymentRequest PrepareRefundPaymentRequest(PaymentIn payment)
+    protected virtual CyberSourceRefundPaymentRequest PrepareRefundPaymentRequest(PaymentIn payment, RefundPaymentRequest context)
     {
         var result = AbstractTypeFactory<CyberSourceRefundPaymentRequest>.TryCreateInstance();
 
         result.OuterPaymentId = payment.OuterId;
         result.Sandbox = Sandbox;
         result.Payment = payment;
+        result.Amount = context.AmountToRefund;
 
         return result;
     }
