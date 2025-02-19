@@ -16,13 +16,10 @@ public class PaymentsController(
 {
     [HttpPost]
     [Route("{paymentId}")]
-    [AllowAnonymous] // todo: remove
-
-    public virtual async Task<IActionResult> RefreshPaymentStatus(string paymentId, string outerId)
+    public virtual async Task<IActionResult> RefreshPaymentStatus(string paymentId)
     {
-        // TODO: user validation??
         var payment = (await paymentService.GetAsync([paymentId])).First();
-        var result = await client.RefreshPaymentStatus(payment, outerId);
+        var result = await client.RefreshPaymentStatus(payment);
         return Ok(result);
     }
 }

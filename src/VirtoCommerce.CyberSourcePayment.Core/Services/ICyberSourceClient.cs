@@ -12,5 +12,5 @@ public interface ICyberSourceClient
     Task<PtsV2PaymentsCapturesPost201Response> CapturePayment(CyberSourceCapturePaymentRequest request);
     Task<PtsV2PaymentsRefundPost201Response> RefundPayment(CyberSourceRefundPaymentRequest request);
     Task<PtsV2PaymentsVoidsPost201Response> VoidPayment(CyberSourceVoidPaymentRequest request);
-    Task<PtsV2PaymentsPost201Response1> RefreshPaymentStatus(PaymentIn payment, string outerId);
+    Task<TssV2TransactionsGet200Response> RefreshPaymentStatus(PaymentIn payment);
 }
