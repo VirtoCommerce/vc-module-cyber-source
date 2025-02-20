@@ -1,18 +1,17 @@
 # Virto Commerce CyberSource Payment Module
 
-## Overview
-
-The Virto Commerce CyberSource Payment Module integrates CyberSource's payment solutions into your Virto Commerce platform.
+The Virto Commerce CyberSource Payment module integrates CyberSource's payment solutions into your Virto Commerce platform.
 
 It enables secure and seamless payment processing, leveraging CyberSource’s Flex Microform technology for enhanced user experience and compliance with PCI standards. This module is designed for businesses seeking to integrate a robust and scalable payment gateway into their eCommerce platform.
 
-## Features
-1. Cybersource based payment methods like Card Payment, 3D Secure, Visa Click to Pay, Google Pay, eCheck & Apple Pay.
-1. Tokenization to create, update and delete a card token.
-1. Authorization and Capture of a payment.
-1. Refunding a payment back to the merchant.
-1. (Cooming Soon) Manual capture of a payment.
-1. (Cooming Soon) Synchronize payments for synchronizing the missing transactions and fraud transactions based on the decision taken by the merchant.
+## Key features
+
+* Cybersource based payment methods like Card Payment, 3D Secure, Visa Click to Pay, Google Pay, eCheck & Apple Pay.
+* Tokenization to create, update and delete a card token.
+* Authorization and Capture of a payment.
+* Refunding a payment back to the merchant.
+* (Cooming Soon) Manual capture of a payment.
+* (Cooming Soon) Synchronize payments for synchronizing the missing transactions and fraud transactions based on the decision taken by the merchant.
 
 ## Configurations
 
@@ -42,11 +41,20 @@ Select the store you want to configure and navigate to the Payment methods secti
 
 Save the changes.
 
-## References
-* [Cybersource Home Site](https://www.cybersource.com/en.html)
-* [CyberSource Flex Microform Integration v2 Documentation](https://developer.cybersource.com/docs/cybs/en-us/digital-accept-flex/developer/all/rest/digital-accept-flex/microform-integ-v2.html)
+## Documentation
 
-For further assistance, please refer to the Virto Commerce documentation or contact support.
+* [CyberSource module user documentation](https://docs.virtocommerce.org/platform/user-guide/cybersource/overview/)
+* [CyberSource module developer documentation](https://docs.virtocommerce.org/platform/developer-guide/Fundamentals/Payments/cybersource/)
+* [Payment methods configuration](https://docs.virtocommerce.org/platform/developer-guide/Configuration-Reference/appsettingsjson/#payments)
+* [View on GitHub](https://github.com/VirtoCommerce/vc-module-cyber-source)
+
+
+## References
+* [Deployment](https://docs.virtocommerce.org/platform/developer-guide/Tutorials-and-How-tos/Tutorials/deploy-module-from-source-code/)
+* [Installation](https://docs.virtocommerce.org/platform/user-guide/modules-installation/)
+* [Home](https://virtocommerce.com)
+* [Community](https://www.virtocommerce.org)
+* [Download latest release](https://github.com/VirtoCommerce/vc-module-cyber-source/releases/latest)
 
 ## License
 
