@@ -55,6 +55,7 @@ public class CyberSourceClient(
             [context.StoreUrl],
             context.CardTypes.ToList()
         );
+
         var config = CreateConfiguration(context.Sandbox);
         var api = new MicroformIntegrationApi(config);
         var jwt = await api.GenerateCaptureContextAsync(request);
@@ -237,6 +238,7 @@ public class CyberSourceClient(
                 Currency = order.Currency,
             },
         };
+
         return result;
     }
 
@@ -272,7 +274,7 @@ public class CyberSourceClient(
     {
         return new Configuration
         {
-            MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox), // todo: SANDBOX
+            MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
         };
     }
 
