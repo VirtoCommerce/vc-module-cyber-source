@@ -13,6 +13,10 @@
         "title": "Sandbox",
         "description": "Mode of CyberSource payment gateway (test or real)"
       },
+      "PaymentMode": {
+        "title": "Payment mode",
+        "description": "Authorization and capture in a single transaction or not"
+      },
       "CardTypes": {
         "title": "Cart types",
         "description": "Allowed card networks"
