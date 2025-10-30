@@ -1,0 +1,26 @@
+{
+  "payment": {
+    "labels": {
+      "CyberSourcePaymentMethod": {
+        "name": "CyberSource",
+        "description": "CyberSource-integraatio Flex/microform -järjestelmään"
+      }
+    }
+  },
+  "settings": {
+    "VirtoCommerce.Payment.CyberSourcePayment": {
+      "Sandbox": {
+        "title": "Sandbox",
+        "description": "CyberSource-maksuyhdyskäytävän tila (testi tai todellinen)"
+      },
+      "PaymentMode": {
+        "title": "Maksutapa",
+        "description": "Autorointi ja sieppaus yhdellä transaktiolla tai ei"
+      },
+      "CardTypes": {
+        "title": "Korttityypit",
+        "description": "Sallitut korttiverkostot"
+      }
+    }
+  }
+}
