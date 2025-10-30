@@ -1,0 +1,26 @@
+{
+  "payment": {
+    "labels": {
+      "CyberSourcePaymentMethod": {
+        "name": "CyberSource",
+        "description": "Integrazione di CyberSource con Flex/microform"
+      }
+    }
+  },
+  "settings": {
+    "VirtoCommerce.Payment.CyberSourcePayment": {
+      "Sandbox": {
+        "title": "Sandbox",
+        "description": "Modalità della gateway di pagamento CyberSource (test o reale)"
+      },
+      "PaymentMode": {
+        "title": "Modalità di pagamento",
+        "description": "Autorizzazione e cattura in una singola transazione o meno"
+      },
+      "CardTypes": {
+        "title": "Tipi di carte",
+        "description": "Reti di carte consentite"
+      }
+    }
+  }
+}
