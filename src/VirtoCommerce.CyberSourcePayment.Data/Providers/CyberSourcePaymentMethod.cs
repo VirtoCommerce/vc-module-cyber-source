@@ -28,6 +28,7 @@ public class CyberSourcePaymentMethod(
 
     public override PaymentMethodGroupType PaymentMethodGroupType => PaymentMethodGroupType.BankCard;
     public override PaymentMethodType PaymentMethodType => PaymentMethodType.Standard;
+    public override bool AllowCartPayment => true;
 
     #region overrides
 
