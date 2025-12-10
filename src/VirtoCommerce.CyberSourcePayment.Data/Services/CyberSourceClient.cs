@@ -13,16 +13,24 @@ using Newtonsoft.Json.Linq;
 using Polly;
 using VirtoCommerce.CustomerModule.Core.Model;
 using VirtoCommerce.CustomerModule.Core.Services;
+using VirtoCommerce.CyberSourcePayment.Core;
 using VirtoCommerce.CyberSourcePayment.Core.Models;
 using VirtoCommerce.CyberSourcePayment.Core.Services;
 using VirtoCommerce.OrdersModule.Core.Model;
+using VirtoCommerce.OrdersModule.Core.Services;
+using VirtoCommerce.PaymentModule.Core.Model;
 using VirtoCommerce.Platform.Core.Security;
+using VirtoCommerce.Platform.Core.Settings;
+using VirtoCommerce.StoreModule.Core.Services;
 
 namespace VirtoCommerce.CyberSourcePayment.Data.Services;
 
 public class CyberSourceClient(
     IOptions<CyberSourcePaymentMethodOptions> options,
     IMemberService memberService,
+    ICustomerOrderService orderService,
+    IStoreService storeService,
+    ISettingsManager settingsManager,
     Func<UserManager<ApplicationUser>> userManagerFactory,
     CyberSourceJwkValidator jwkValidator
     ) : ICyberSourceClient
@@ -232,6 +240,42 @@ public class CyberSourceClient(
         };
 
         return result;
+    }
+
+    public async Task<PaymentIn> RefreshPaymentStatus(PaymentIn payment)
+    {
+        if (payment.Status == PaymentStatus.Pending.ToString())
+        {
+            var order = (await orderService.GetAsync([payment.OrderId])).First();
+            var store = (await storeService.GetAsync([order.StoreId])).First();
+
+            await settingsManager.DeepLoadSettingsAsync(store);
+            var sandbox = store.Settings.GetValue<bool>(ModuleConstants.Settings.General.Sandbox);
+            var config = CreateCyberSourceClientConfig(sandbox);
+
+            var api = new TransactionDetailsApi(config);
+            var result = await api.GetTransactionAsync(payment.OuterId);
+
+            // if (result.Status != CyberSourceRequest.PaymentStatus.Pending)
+            // result.ApplicationInformation.ReasonCode >= 480
+            if (result.Status != null)
+            {
+                var paymentToSave = order.InPayments.First(x => x.Id == payment.Id);
+                paymentToSave.Status = result.Status;
+                await orderService.SaveChangesAsync([order]);
+                return paymentToSave;
+            }
+        }
+
+        return payment;
+    }
+
+    protected virtual Configuration CreateCyberSourceClientConfig(bool sandbox)
+    {
+        return new Configuration
+        {
+            MerchantConfigDictionaryObj = options.Value.ToDictionary(sandbox),
+        };
     }
 
     protected virtual async Task<Ptsv2paymentsidcapturesOrderInformation> GetCaptureOrderInfo(CyberSourceCapturePaymentRequest request)
