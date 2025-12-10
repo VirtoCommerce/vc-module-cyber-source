@@ -11,7 +11,7 @@
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
     <PackageReference Include="VirtoCommerce.CustomerModule.Core" Version="3.821.0" />
     <PackageReference Include="VirtoCommerce.OrdersModule.Core" Version="3.830.0" />
-    <PackageReference Include="VirtoCommerce.PaymentModule.Core" Version="3.812.0-alpha.261-vcst-3387" />
+    <PackageReference Include="VirtoCommerce.PaymentModule.Core" Version="3.812.0" />
     <PackageReference Include="VirtoCommerce.Platform.Core" Version="3.917.0" />
   </ItemGroup>
 </Project>
