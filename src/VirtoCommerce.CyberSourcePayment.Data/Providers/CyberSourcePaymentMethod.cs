@@ -284,6 +284,7 @@ public class CyberSourcePaymentMethod(
 
         CyberSourceRequest.PaymentStatus.InvalidRequest => PaymentInvalid(response, payment),
 
+        // note: see the CyberSourceClient.RefreshPaymentStatus method too
         CyberSourceRequest.PaymentStatus.PendingAuthentication
             or CyberSourceRequest.PaymentStatus.PartialAuthorized
             or CyberSourceRequest.PaymentStatus.AuthorizedPendingReview
@@ -365,9 +366,11 @@ public class CyberSourcePaymentMethod(
         payment.ProcessPaymentResult = new ProcessPaymentRequestResult { ErrorMessage = errorMessage };
         payment.Comment = $"{errorMessage}{Environment.NewLine}";
         payment.OuterId = response.Id;
+        payment.Status = PaymentStatus.Pending.ToString();
 
         return new PostProcessPaymentRequestResult
         {
+            NewPaymentStatus = PaymentStatus.Pending,
             ErrorMessage = errorMessage,
             IsSuccess = true,
         };
