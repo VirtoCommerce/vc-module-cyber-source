@@ -1,0 +1,26 @@
+{
+  "payment": {
+    "labels": {
+      "CyberSourcePaymentMethod": {
+        "name": "CyberSource",
+        "description": "CyberSource-integrasjon med Flex/microform"
+      }
+    }
+  },
+  "settings": {
+    "VirtoCommerce.Payment.CyberSourcePayment": {
+      "Sandbox": {
+        "title": "Sandbox",
+        "description": "Modus for CyberSource-betalingsport (test eller ekte)"
+      },
+      "PaymentMode": {
+        "title": "Betalingsmodus",
+        "description": "Autorisasjon og fangst i en enkelt transaksjon eller ikke"
+      },
+      "CardTypes": {
+        "title": "Korttyper",
+        "description": "Tillatte kortnettverk"
+      }
+    }
+  }
+}

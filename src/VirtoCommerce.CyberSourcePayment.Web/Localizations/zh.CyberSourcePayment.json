@@ -1,0 +1,26 @@
+{
+  "payment": {
+    "labels": {
+      "CyberSourcePaymentMethod": {
+        "name": "CyberSource",
+        "description": "CyberSource与Flex/microform的集成"
+      }
+    }
+  },
+  "settings": {
+    "VirtoCommerce.Payment.CyberSourcePayment": {
+      "Sandbox": {
+        "title": "沙盒",
+        "description": "CyberSource支付网关的模式（测试或真实）"
+      },
+      "PaymentMode": {
+        "title": "支付模式",
+        "description": "是否在单笔交易中进行授权和捕获"
+      },
+      "CardTypes": {
+        "title": "卡类型",
+        "description": "允许的卡网络"
+      }
+    }
+  }
+}

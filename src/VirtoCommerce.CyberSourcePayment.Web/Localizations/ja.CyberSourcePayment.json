@@ -1,0 +1,26 @@
+{
+  "payment": {
+    "labels": {
+      "CyberSourcePaymentMethod": {
+        "name": "CyberSource",
+        "description": "CyberSourceとFlex/microformの統合"
+      }
+    }
+  },
+  "settings": {
+    "VirtoCommerce.Payment.CyberSourcePayment": {
+      "Sandbox": {
+        "title": "Sandbox",
+        "description": "CyberSource支払いゲートウェイのモード（テストまたは実運用）"
+      },
+      "PaymentMode": {
+        "title": "支払いモード",
+        "description": "単一トランザクションでの認証とキャプチャを行うかどうか"
+      },
+      "CardTypes": {
+        "title": "カードタイプ",
+        "description": "許可されたカードネットワーク"
+      }
+    }
+  }
+}
