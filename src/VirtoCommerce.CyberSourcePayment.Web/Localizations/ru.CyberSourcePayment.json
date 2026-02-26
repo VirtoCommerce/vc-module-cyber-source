@@ -1,0 +1,26 @@
+{
+  "payment": {
+    "labels": {
+      "CyberSourcePaymentMethod": {
+        "name": "CyberSource",
+        "description": "Интеграция CyberSource с Flex/microform"
+      }
+    }
+  },
+  "settings": {
+    "VirtoCommerce.Payment.CyberSourcePayment": {
+      "Sandbox": {
+        "title": "Песочница",
+        "description": "Режим платежного шлюза CyberSource (тестовый или реальный)"
+      },
+      "PaymentMode": {
+        "title": "Режим оплаты",
+        "description": "Авторизация и захват в одной транзакции или нет"
+      },
+      "CardTypes": {
+        "title": "Типы карт",
+        "description": "Разрешенные карточные сети"
+      }
+    }
+  }
+}
