@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CyberSource.Model;
 using Newtonsoft.Json;
@@ -30,46 +31,15 @@ public class CyberSourcePaymentMethod(
     public override PaymentMethodType PaymentMethodType => PaymentMethodType.Standard;
     public override bool AllowCartPayment => true;
 
-    #region overrides
-
-    public override ProcessPaymentRequestResult ProcessPayment(ProcessPaymentRequest request)
+    public override Task<ValidatePostProcessRequestResult> ValidatePostProcessRequestAsync(NameValueCollection queryString, CancellationToken cancellationToken = default)
     {
-        return ProcessPaymentAsync(request).GetAwaiter().GetResult();
-    }
-
-    public override PostProcessPaymentRequestResult PostProcessPayment(PostProcessPaymentRequest request)
-    {
-        return PostProcessPaymentAsync(request).GetAwaiter().GetResult();
-    }
-
-    public override ValidatePostProcessRequestResult ValidatePostProcessRequest(NameValueCollection queryString)
-    {
-        return new ValidatePostProcessRequestResult
+        return Task.FromResult(new ValidatePostProcessRequestResult
         {
             IsSuccess = true,
-        };
+        });
     }
 
-    public override CapturePaymentRequestResult CaptureProcessPayment(CapturePaymentRequest context)
-    {
-        return CaptureProcessPaymentAsync(context).GetAwaiter().GetResult();
-    }
-
-    public override RefundPaymentRequestResult RefundProcessPayment(RefundPaymentRequest context)
-    {
-        return RefundProcessPaymentAsync(context).GetAwaiter().GetResult();
-    }
-
-    public override VoidPaymentRequestResult VoidProcessPayment(VoidPaymentRequest request)
-    {
-        return VoidProcessPaymentAsync(request).GetAwaiter().GetResult();
-    }
-
-    #endregion
-
-    #region protected async methods
-
-    protected virtual async Task<ProcessPaymentRequestResult> ProcessPaymentAsync(ProcessPaymentRequest request)
+    public override async Task<ProcessPaymentRequestResult> ProcessPaymentAsync(ProcessPaymentRequest request, CancellationToken cancellationToken = default)
     {
         var store = (Store)request.Store;
 
@@ -106,7 +76,7 @@ public class CyberSourcePaymentMethod(
         return result;
     }
 
-    protected virtual async Task<PostProcessPaymentRequestResult> PostProcessPaymentAsync(PostProcessPaymentRequest request)
+    public override async Task<PostProcessPaymentRequestResult> PostProcessPaymentAsync(PostProcessPaymentRequest request, CancellationToken cancellationToken = default)
     {
         var token = request.Parameters.Get("token");
         var payment = (PaymentIn)request.Payment;
@@ -120,7 +90,7 @@ public class CyberSourcePaymentMethod(
         return result;
     }
 
-    protected virtual async Task<CapturePaymentRequestResult> CaptureProcessPaymentAsync(CapturePaymentRequest context)
+    public override async Task<CapturePaymentRequestResult> CaptureProcessPaymentAsync(CapturePaymentRequest context, CancellationToken cancellationToken = default)
     {
         var captureRequest = PrepareCapturePaymentRequest(context);
         var captureResult = await cyberSourceClient.CapturePayment(captureRequest);
@@ -147,7 +117,7 @@ public class CyberSourcePaymentMethod(
         return result;
     }
 
-    protected virtual async Task<RefundPaymentRequestResult> RefundProcessPaymentAsync(RefundPaymentRequest context)
+    public override async Task<RefundPaymentRequestResult> RefundProcessPaymentAsync(RefundPaymentRequest context, CancellationToken cancellationToken = default)
     {
         var payment = (PaymentIn)context.Payment;
         var refundRequest = PrepareRefundPaymentRequest(payment, context);
@@ -166,7 +136,7 @@ public class CyberSourcePaymentMethod(
         return result;
     }
 
-    protected virtual async Task<VoidPaymentRequestResult> VoidProcessPaymentAsync(VoidPaymentRequest request)
+    public override async Task<VoidPaymentRequestResult> VoidProcessPaymentAsync(VoidPaymentRequest request, CancellationToken cancellationToken = default)
     {
         var payment = (PaymentIn)request.Payment;
         var transactionRequest = PrepareVoidPaymentRequest(payment);
@@ -187,8 +157,6 @@ public class CyberSourcePaymentMethod(
 
         return result;
     }
-
-    #endregion
 
     #region prepare requests
 
