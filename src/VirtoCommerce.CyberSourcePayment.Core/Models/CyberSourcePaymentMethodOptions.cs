@@ -38,8 +38,6 @@ public class CyberSourcePaymentMethodOptions
             ["runEnvironment"] = environment,
             ["keyAlias"] = MerchantId,
             ["keyPass"] = MerchantId,
-            ["enableClientCert"] = "false",
-            ["useMetaKey"] = "false",
         };
     }
 }
