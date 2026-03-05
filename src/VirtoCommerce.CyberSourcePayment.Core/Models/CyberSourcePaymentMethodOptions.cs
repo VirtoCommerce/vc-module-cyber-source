@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace VirtoCommerce.CyberSourcePayment.Core.Models;
@@ -10,8 +11,6 @@ public class CyberSourcePaymentMethodOptions
 
     public int ValidateSignatureRetryCount { get; set; } = 1;
 
-    private readonly Dictionary<string, string> _configurationDictionary = new();
-
     public static string Environment(bool sandbox)
     {
         return sandbox
@@ -21,16 +20,24 @@ public class CyberSourcePaymentMethodOptions
 
     public IReadOnlyDictionary<string, string> ToDictionary(bool sandbox)
     {
+        if (string.IsNullOrEmpty(MerchantId) || string.IsNullOrEmpty(MerchantKeyId) || string.IsNullOrEmpty(MerchantSecretKey))
+        {
+            throw new InvalidOperationException(
+                "CyberSource payment configuration is incomplete. " +
+                "Please provide MerchantId, MerchantKeyId, and MerchantSecretKey in the 'Payments:CyberSource' configuration section.");
+        }
+
         var environment = Environment(sandbox);
 
-        _configurationDictionary.TryAdd("authenticationType", "HTTP_SIGNATURE");
-        _configurationDictionary.TryAdd("merchantID", MerchantId);
-        _configurationDictionary.TryAdd("merchantsecretKey", MerchantSecretKey);
-        _configurationDictionary.TryAdd("merchantKeyId", MerchantKeyId);
-        _configurationDictionary.TryAdd("runEnvironment", environment);
-        _configurationDictionary.TryAdd("keyAlias", MerchantId);
-        _configurationDictionary.TryAdd("keyPass", MerchantId);
-
-        return _configurationDictionary;
+        return new Dictionary<string, string>
+        {
+            ["authenticationType"] = "HTTP_SIGNATURE",
+            ["merchantID"] = MerchantId,
+            ["merchantsecretKey"] = MerchantSecretKey,
+            ["merchantKeyId"] = MerchantKeyId,
+            ["runEnvironment"] = environment,
+            ["keyAlias"] = MerchantId,
+            ["keyPass"] = MerchantId,
+        };
     }
 }

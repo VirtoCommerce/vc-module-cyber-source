@@ -8,5 +8,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- System.Drawing.Common 4.7.0 is a transitive dependency of CyberSource.Rest.Client.NetStandard -->
+    <NoWarn>$(NoWarn);NU1904</NoWarn>
   </PropertyGroup>
 </Project>
